@@ -1,14 +1,24 @@
 {
     "tasks": {
-        "dev": "deno run --watch --allow-net main.ts"
+        "build": "deno run -A vite build"
     },
     "imports": {
-        "@std/assert": "jsr:@std/assert@1"
+        "@std/assert": "jsr:@std/assert@1",
+        "@sveltejs/vite-plugin-svelte": "npm:@sveltejs/vite-plugin-svelte@^7.2.0",
+        "svelte": "npm:svelte@^5.56.8",
+        "vite": "npm:vite@^8.1.5"
+    },
+    "nodeModulesDir": "auto",
+    "compilerOptions": {
+        "checkJs": true,
+        "module": "esnext",
+        "lib": ["deno.window", "deno.unstable", "node", "dom"]
     },
     "fmt": {
         "indentWidth": 4,
         "useTabs": false,
         "jsx.multiLineParens": "never",
         "singleBodyPosition": "sameLine"
-    }
+    },
+    "unstable": ["fmt-component"]
 }
