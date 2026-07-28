@@ -185,15 +185,13 @@
 
 /* ------------------------------------------------------------ components -- */
 @layer components {
-    /* ---- shared pane header (sidebar / chat / inspector) ---- */
+    /* ---- shared pane header (chat / inspector): borderless, blends into content ---- */
     .pane-head {
         display: flex;
         align-items: center;
         justify-content: space-between;
         gap: 0.5rem;
         padding: 0.55rem 0.85rem;
-        border-bottom: 1px solid var(--border);
-        background: var(--surface);
         min-height: 48px;
     }
     .pane-head .title {
@@ -201,6 +199,7 @@
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+        min-width: 0;
     }
     .pane-head .head-actions {
         display: flex;
