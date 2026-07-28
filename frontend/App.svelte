@@ -47,6 +47,8 @@
         display: flex;
         flex-direction: column;
         min-width: 0;
+        min-height: 0;
+        overflow: hidden;
         border-left: 1px solid var(--border);
     }
     .app:not(.inspector-closed) .chat-pane {

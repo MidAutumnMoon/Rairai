@@ -40,6 +40,7 @@
 <style>
     .stream {
         flex: 1;
+        min-height: 0;
         overflow-y: auto;
         padding: 1rem 0;
     }
