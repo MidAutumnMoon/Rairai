@@ -1,89 +1,44 @@
-// Provider + model resolution for the chat backend.
+// Provider + model resolution, now backed by the DB (providers table) with
+// per-provider credential resolution:
+//   - env:    the key is read from a named env var at call time (never stored).
+//   - inline: the key is stored in the DB (0600) and resolved per call.
+// On an empty provider table we bootstrap one from env (or a faux dev provider).
 //
-// Two modes:
-//   - Gateway (real): when OPENAI_BASE_URL + OPENAI_API_KEY are set, target an
-//     OpenAI-compatible endpoint via the Chat Completions API (/v1/chat/completions).
-//   - Faux (dev): otherwise, use pi-ai's built-in `faux` provider - no keys, no
-//     network. Faux errors if its response queue is empty, so we script a
-//     dynamic echo-with-reasoning response per request.
-//
-// All LLM HTTP happens here, server-side - the browser never touches the
-// provider, so there is no CORS surface.
+// All LLM HTTP happens here, server-side - no CORS, secrets never leave the server.
 
 import {
     createModels,
     createProvider,
     envApiKeyAuth,
+    type ApiKeyAuth,
     type Model,
     type MutableModels,
 } from "@earendil-works/pi-ai";
 import { fauxProvider, fauxAssistantMessage, fauxThinking } from "@earendil-works/pi-ai/providers/faux";
 import { openAICompletionsApi } from "@earendil-works/pi-ai/api/openai-completions.lazy";
+import { openAIResponsesApi } from "@earendil-works/pi-ai/api/openai-responses.lazy";
+import { anthropicMessagesApi } from "@earendil-works/pi-ai/api/anthropic-messages.lazy";
 import type { Context } from "@earendil-works/pi-ai";
+import type { ApiType } from "../../shared/api.ts";
+import { ensureBootstrapProvider, getProvider, resolveProviderKey } from "../db.ts";
 
-export interface ResolvedProvider {
+export interface ResolvedModel {
     models: MutableModels;
     model: Model<string>;
     label: string;
 }
 
-export function resolveProvider(): ResolvedProvider {
-    const baseUrl = Deno.env.get("OPENAI_BASE_URL");
-    const apiKey = Deno.env.get("OPENAI_API_KEY");
-    if (baseUrl && apiKey) return makeGateway(baseUrl);
-    return makeFaux();
-}
-
-function makeFaux(): ResolvedProvider {
-    const handle = fauxProvider();
-    // Script a dynamic response: echo the user's last message with a short
-    // reasoning block, so the dev mode exercises streaming + reasoning + the
-    // network inspector without any real provider.
-    handle.setResponses([
-        (_context: Context) => {
-            const userText = lastUserText(_context);
-            return fauxAssistantMessage(
-                [
-                    fauxThinking(`The user said: "${userText}". Echoing back.`),
-                    { type: "text", text: `[faux echo] ${userText}` },
-                ],
-                { stopReason: "stop" },
-            );
-        },
-    ]);
-    const models = createModels();
-    models.setProvider(handle.provider);
-    const model = handle.getModel("faux-1")!;
-    return { models, model, label: "faux" };
-}
-
-function makeGateway(baseUrl: string): ResolvedProvider {
-    // baseUrl MUST include the "/v1" segment - the OpenAI SDK appends
-    // "/chat/completions" to it (not "/v1/chat/completions").
-    const modelId = Deno.env.get("OPENAI_MODEL") ?? "gpt-4o-mini";
-    const providerId = "openai-gateway";
-    const model: Model<"openai-completions"> = {
-        id: modelId,
-        name: modelId,
-        api: "openai-completions", // -> POST {baseUrl}/chat/completions
-        provider: providerId,
-        baseUrl,
-        reasoning: false, // safest for an unknown gateway; skips thinking-format branches
-        input: ["text"],
-        cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-        contextWindow: 32768,
-        maxTokens: 4096,
-    };
-    const provider = createProvider({
-        id: providerId,
-        baseUrl,
-        auth: { apiKey: envApiKeyAuth("OpenAI-compatible key", ["OPENAI_API_KEY"]) },
-        models: [model],
-        api: openAICompletionsApi(),
-    });
-    const models = createModels();
-    models.setProvider(provider); // required: streamSimple looks up the provider by id
-    return { models, model, label: `gateway:${modelId}` };
+function apiLazy(type: ApiType) {
+    switch (type) {
+        case "openai-completions":
+            return openAICompletionsApi();
+        case "openai-responses":
+            return openAIResponsesApi();
+        case "anthropic-messages":
+            return anthropicMessagesApi();
+        case "faux":
+            return null;
+    }
 }
 
 function lastUserText(context: Context): string {
@@ -94,4 +49,78 @@ function lastUserText(context: Context): string {
         return m.content.map((c) => (c.type === "text" ? c.text : "")).join("");
     }
     return "(no user message)";
+}
+
+/** Resolve a DB provider + model id into a runnable pi Models/Model pair.
+ *  Builds a fresh provider per call (cheap, no network) so credential rotation
+ *  and model-list edits always take effect. */
+export function resolveProviderModel(providerId: string, modelId: string | null): ResolvedModel {
+    ensureBootstrapProvider();
+    const p = getProvider(providerId);
+    if (!p) throw new Error(`Unknown provider: ${providerId}`);
+    if (!p.enabled) throw new Error(`Provider "${p.name}" is disabled`);
+    const resolvedModelId = modelId ?? p.models[0];
+    if (!resolvedModelId) throw new Error(`Provider "${p.name}" has no models configured`);
+
+    // Faux is a special dev provider built via fauxProvider() (scripted echo).
+    if (p.apiType === "faux") {
+        const handle = fauxProvider();
+        handle.setResponses([
+            (_ctx: Context) =>
+                fauxAssistantMessage(
+                    [
+                        fauxThinking(`The user said: "${lastUserText(_ctx)}". Echoing back.`),
+                        { type: "text", text: `[faux echo] ${lastUserText(_ctx)}` },
+                    ],
+                    { stopReason: "stop" },
+                ),
+        ]);
+        const models = createModels();
+        models.setProvider(handle.provider);
+        const model = handle.getModel(resolvedModelId) ?? handle.getModel()!;
+        return { models, model, label: `faux:${resolvedModelId}` };
+    }
+
+    const key = resolveProviderKey(p.id);
+    if (!key) {
+        const hint = p.credential.source === "env"
+            ? ` (env var "${p.credential.ref}" is not set)`
+            : " (no inline key stored)";
+        throw new Error(`Provider "${p.name}" has no resolved credential${hint}`);
+    }
+
+    const model: Model<string> = {
+        id: resolvedModelId,
+        name: resolvedModelId,
+        api: p.apiType,
+        provider: p.id,
+        baseUrl: p.baseUrl,
+        reasoning: false,
+        input: ["text"],
+        cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+        contextWindow: 32768,
+        maxTokens: 4096,
+    };
+
+    // Inline keys use a resolver that returns the stored value; env keys resolve
+    // from the named env var via envApiKeyAuth.
+    const auth: { apiKey: ApiKeyAuth } = p.credential.source === "env"
+        ? { apiKey: envApiKeyAuth(p.name, [p.credential.ref ?? ""]) }
+        : {
+            apiKey: {
+                name: p.name,
+                resolve: () => Promise.resolve({ auth: { apiKey: key } }),
+            },
+        };
+
+    const provider = createProvider({
+        id: p.id,
+        baseUrl: p.baseUrl,
+        auth,
+        models: [model],
+        api: apiLazy(p.apiType)!,
+    });
+    const models = createModels();
+    models.setProvider(provider);
+    return { models, model, label: `${p.name}:${resolvedModelId}` };
 }

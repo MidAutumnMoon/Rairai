@@ -12,7 +12,7 @@
             <button
                 class="convo"
                 class:active={conv.id === chat.activeId}
-                onclick={() => chat.select(conv.id)}
+                onclick={() => chat.open(conv.id)}
             >
                 <span class="dot"></span>
                 <span class="t">{conv.title}</span>

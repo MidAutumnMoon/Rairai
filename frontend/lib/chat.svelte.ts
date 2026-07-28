@@ -1,9 +1,9 @@
-// Chat store + SSE client. The frontend owns the conversation state (persisted
-// to localStorage later); each send POSTs the history to /api/chat and applies
-// the streamed ServerEvents to the active conversation + the network log.
+// Chat store + SSE client, now server-backed. The backend owns conversations
+// (persisted in SQLite); this store is a cache/view: it loads the conversation
+// list, opens one fully (with messages), and sends {conversationId, text} per
+// turn - never the full history. Streamed events mutate the active message.
 //
-// Svelte 5 runes live in a `.svelte.ts` module: $state on class fields makes
-// them deeply reactive (mutating nested messages/arrays updates the UI).
+// Svelte 5 runes: $state on class fields makes them deeply reactive.
 
 import type {
     ChatMessage,
@@ -11,19 +11,17 @@ import type {
     NetworkLog,
     ServerEvent,
 } from "../../shared/chat-events.ts";
-
-export interface Conversation {
-    id: string;
-    title: string;
-    messages: ChatMessage[];
-    createdAt: number;
-}
+import type { Conversation, ConversationSummary } from "../../shared/api.ts";
+import {
+    createConversation,
+    deleteConversation,
+    getConversation,
+    listConversations,
+} from "./api.ts";
 
 function uid(prefix: string): string {
     return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
-
-const SYSTEM_PROMPT = "You are a helpful assistant.";
 
 /** Stream ServerEvents from POST /api/chat by parsing the SSE wire format. */
 async function streamChat(
@@ -46,7 +44,6 @@ async function streamChat(
         const { done, value } = await reader.read();
         if (done) break;
         buffer += decoder.decode(value, { stream: true });
-        // SSE frames are separated by a blank line (\n\n).
         let sep: number;
         while ((sep = buffer.indexOf("\n\n")) >= 0) {
             const frame = buffer.slice(0, sep);
@@ -64,56 +61,82 @@ async function streamChat(
 }
 
 class ChatStore {
-    conversations = $state<Conversation[]>([]);
+    conversations = $state<ConversationSummary[]>([]);
     activeId = $state<string | null>(null);
+    activeConversation = $state<Conversation | null>(null);
     networkLogs = $state<NetworkLog[]>([]);
     isStreaming = $state(false);
     streamError = $state<string | null>(null);
-    /** id of the assistant message currently being streamed (for the view). */
     streamingMessageId = $state<string | null>(null);
     private abortCtl: AbortController | null = null;
 
     get active(): Conversation | null {
-        return this.conversations.find((c) => c.id === this.activeId) ?? null;
+        return this.activeConversation;
     }
 
-    newConversation(): void {
-        const conv: Conversation = {
-            id: uid("conv"),
-            title: "New chat",
-            messages: [],
-            createdAt: Date.now(),
-        };
-        this.conversations.push(conv);
-        this.activeId = conv.id;
+    /** Load the conversation list; open the most recent, or start a new one. */
+    async init(): Promise<void> {
+        await this.loadConversations();
+        if (this.conversations.length) {
+            await this.open(this.conversations[0].id);
+        } else {
+            await this.newConversation();
+        }
     }
 
-    select(id: string): void {
+    async loadConversations(): Promise<void> {
+        this.conversations = await listConversations();
+    }
+
+    async open(id: string): Promise<void> {
         this.activeId = id;
+        this.activeConversation = await getConversation(id);
+    }
+
+    async newConversation(): Promise<void> {
+        const conv = await createConversation({});
+        this.activeConversation = conv;
+        this.activeId = conv.id;
+        await this.loadConversations();
+    }
+
+    async deleteConversation(id: string): Promise<void> {
+        await deleteConversation(id);
+        if (this.activeId === id) {
+            this.activeConversation = null;
+            this.activeId = null;
+        }
+        await this.loadConversations();
+        if (!this.activeId && this.conversations.length) {
+            await this.open(this.conversations[0].id);
+        } else if (!this.conversations.length) {
+            await this.newConversation();
+        }
     }
 
     async sendMessage(text: string): Promise<void> {
         const trimmed = text.trim();
         if (!trimmed || this.isStreaming) return;
 
-        let conv = this.active;
+        let conv = this.activeConversation;
         if (!conv) {
-            this.newConversation();
-            conv = this.active!;
+            conv = await createConversation({});
+            this.activeConversation = conv;
+            this.activeId = conv.id;
         }
 
+        // Optimistic user message (temp id; reconciled to a server id on reload).
         const userMsg: ChatMessage = {
-            id: uid("msg"),
+            id: uid("local"),
             role: "user",
             text: trimmed,
             createdAt: Date.now(),
         };
         conv.messages.push(userMsg);
-        if (conv.title === "New chat") conv.title = trimmed.slice(0, 48);
 
-        // Placeholder assistant message that we mutate as deltas arrive.
+        // Placeholder assistant message mutated as deltas arrive.
         const streamMsg: ChatMessage = {
-            id: uid("msg"),
+            id: uid("local"),
             role: "assistant",
             text: "",
             reasoning: "",
@@ -121,29 +144,28 @@ class ChatStore {
         };
         conv.messages.push(streamMsg);
 
-        const req: ChatRequest = {
-            // history incl. the new user message, excl. the streaming placeholder
-            messages: conv.messages.slice(0, -1),
-            systemPrompt: SYSTEM_PROMPT,
-        };
-
         this.isStreaming = true;
         this.streamError = null;
         this.streamingMessageId = streamMsg.id;
         this.abortCtl = new AbortController();
         try {
-            await streamChat(req, (ev) => this.applyEvent(streamMsg.id, ev), this.abortCtl.signal);
+            await streamChat(
+                { conversationId: conv.id, text: trimmed },
+                (ev) => this.applyEvent(streamMsg.id, ev),
+                this.abortCtl.signal,
+            );
         } catch (e) {
             if (!this.streamError) this.streamError = e instanceof Error ? e.message : String(e);
         } finally {
             this.isStreaming = false;
             this.streamingMessageId = null;
             this.abortCtl = null;
+            await this.loadConversations();
         }
     }
 
     private applyEvent(streamMsgId: string, ev: ServerEvent): void {
-        const conv = this.active;
+        const conv = this.activeConversation;
         if (!conv) return;
         const msg = conv.messages.find((m) => m.id === streamMsgId);
         switch (ev.type) {
@@ -165,15 +187,12 @@ class ChatStore {
                 this.networkLogs.unshift(ev.log);
                 break;
             case "done": {
-                // Replace the placeholder with the finalized message (keep the id
-                // so the view doesn't remount; carry over any streamed reasoning
-                // the server may have omitted from `done`).
+                // Replace the placeholder with the server-persisted message.
                 const i = conv.messages.findIndex((m) => m.id === streamMsgId);
                 if (i >= 0) {
                     const final = ev.message;
                     conv.messages[i] = {
                         ...final,
-                        id: streamMsgId,
                         reasoning: final.reasoning ?? msg?.reasoning,
                     };
                 }

@@ -12,6 +12,8 @@
         "@earendil-works/pi-ai/providers/faux": "npm:@earendil-works/pi-ai@^0.82.1/providers/faux",
         "@earendil-works/pi-ai/providers/openai": "npm:@earendil-works/pi-ai@^0.82.1/providers/openai",
         "@earendil-works/pi-ai/api/openai-completions.lazy": "npm:@earendil-works/pi-ai@^0.82.1/api/openai-completions.lazy",
+        "@earendil-works/pi-ai/api/openai-responses.lazy": "npm:@earendil-works/pi-ai@^0.82.1/api/openai-responses.lazy",
+        "@earendil-works/pi-ai/api/anthropic-messages.lazy": "npm:@earendil-works/pi-ai@^0.82.1/api/anthropic-messages.lazy",
         "@hono/hono": "jsr:@hono/hono@^4.12.32",
         "@hono/hono/streaming": "jsr:@hono/hono@^4.12.32/streaming",
         "@std/assert": "jsr:@std/assert@1",

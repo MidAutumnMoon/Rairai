@@ -47,13 +47,11 @@ export interface TokenUsage {
     output: number;
 }
 
-/** Body of POST /api/chat. */
+/** Body of POST /api/chat. The backend owns conversation history - the client
+ *  just identifies the conversation and sends the new user text. */
 export interface ChatRequest {
-    /** Full conversation history, last entry is the new user message. */
-    messages: ChatMessage[];
-    systemPrompt?: string;
-    /** Optional model id override; otherwise the server default is used. */
-    model?: string;
+    conversationId: string;
+    text: string;
 }
 
 // ---------------------------------------------------------------------------

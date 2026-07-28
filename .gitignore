@@ -1,5 +1,7 @@
 node_modules/
 dist/
+# persisted app state (sqlite db, runtime config)
+data/
 
 *.log
 npm-debug.log*

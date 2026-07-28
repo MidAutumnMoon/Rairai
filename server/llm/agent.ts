@@ -1,13 +1,19 @@
-// The chat runner: turns a ChatRequest into a stream of ServerEvents by driving
-// a pi-agent-core Agent. Also captures every outbound LLM call into a NetworkLog
-// (the request inspector's data) without wrapping the stream - the request is
-// read from the `context` passed to the streamFn, and the response is read from
-// the Agent's `message_end` event.
+// The chat runner: POST /api/chat identifies a conversation + new user text.
+// The backend owns the history - it loads the conversation, persists the user
+// message, runs the pi Agent, streams events, and persists the final assistant
+// message. Network-log capture (the request inspector's data) is unchanged.
 
 import { Agent, type AgentMessage, type StreamFn } from "@earendil-works/pi-agent-core";
 import type { AssistantMessage, Message, TextContent, ThinkingContent, Usage } from "@earendil-works/pi-ai";
-import { resolveProvider } from "./providers.ts";
+import { resolveProviderModel } from "./providers.ts";
 import { sampleTools } from "./tools.ts";
+import {
+    addMessage,
+    getConversation,
+    getSettings,
+    listProviders,
+    updateConversationTitle,
+} from "../db.ts";
 import type {
     ChatMessage,
     ChatRequest,
@@ -28,6 +34,10 @@ const zeroUsage: Usage = {
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
 };
 
+function uid(prefix: string): string {
+    return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
 function safeParse<T>(s: string | undefined, fallback: T): T {
     if (!s) return fallback;
     try {
@@ -46,8 +56,8 @@ function toPiUsage(u: TokenUsage): Usage {
     };
 }
 
-/** Reconstruct pi's Message[] from frontend ChatMessage[], expanding each
- *  assistant tool call into a toolCall part plus a toolResult message. */
+/** Reconstruct pi Message[] from stored ChatMessage[], expanding each assistant
+ *  tool call into a toolCall part plus a toolResult message. */
 function toPiMessages(history: ChatMessage[], api: string, provider: string, model: string): AgentMessage[] {
     const out: Message[] = [];
     for (const m of history) {
@@ -55,7 +65,12 @@ function toPiMessages(history: ChatMessage[], api: string, provider: string, mod
             out.push({ role: "user", content: [text(m.text)], timestamp: m.createdAt });
             continue;
         }
-        const parts: (TextContent | ThinkingContent | { type: "toolCall"; id: string; name: string; arguments: Record<string, unknown> })[] = [];
+        const parts: (TextContent | ThinkingContent | {
+            type: "toolCall";
+            id: string;
+            name: string;
+            arguments: Record<string, unknown>;
+        })[] = [];
         if (m.reasoning) parts.push({ type: "thinking", thinking: m.reasoning });
         if (m.text) parts.push(text(m.text));
         for (const tc of m.toolCalls ?? []) {
@@ -99,17 +114,40 @@ export async function runChat(
     emit: (e: ServerEvent) => void,
     _signal: AbortSignal,
 ): Promise<void> {
-    const { models, model } = resolveProvider();
-    const api = model.api as string;
-    const provider = model.provider as string;
-    const modelId = model.id;
-
-    const last = req.messages[req.messages.length - 1];
-    if (!last || last.role !== "user") {
-        emit({ type: "error", message: "The last message must be a user message." });
+    const conv = getConversation(req.conversationId);
+    if (!conv) {
+        emit({ type: "error", message: `Conversation not found: ${req.conversationId}` });
         return;
     }
-    const history = toPiMessages(req.messages.slice(0, -1), api, provider, modelId);
+    const settings = getSettings();
+    let providerId = conv.providerId ?? settings.activeProviderId;
+    if (!providerId) {
+        const enabled = listProviders().filter((p) => p.enabled);
+        providerId = enabled[0]?.id ?? null;
+    }
+    if (!providerId) {
+        emit({ type: "error", message: "No provider configured. Add one in Settings." });
+        return;
+    }
+    const modelId = conv.model ?? settings.activeModel;
+    const { models, model } = resolveProviderModel(providerId, modelId);
+    const api = model.api as string;
+    const provider = model.provider as string;
+    const modelIdResolved = model.id;
+
+    // Persist the new user message, then auto-title if this is the first turn.
+    const userMsg: ChatMessage = {
+        id: uid("msg"),
+        role: "user",
+        text: req.text,
+        createdAt: Date.now(),
+    };
+    addMessage(conv.id, userMsg);
+    if (conv.title === "New chat") updateConversationTitle(conv.id, req.text.slice(0, 48));
+
+    const systemPrompt = conv.systemPrompt ?? settings.defaultSystemPrompt;
+    // History excludes the just-persisted user message (conv was loaded before).
+    const history = toPiMessages(conv.messages, api, provider, modelIdResolved);
 
     // Network-log capture state (one entry per LLM call / assistant turn).
     let curId = "";
@@ -137,7 +175,6 @@ export async function runChat(
         return realStreamFn(m, ctx, options);
     };
 
-    // Accumulator for the final assistant message.
     let accText = "";
     let accReasoning = "";
     const toolCalls = new Map<string, ToolCall>();
@@ -148,7 +185,7 @@ export async function runChat(
 
     const agent = new Agent({
         initialState: {
-            systemPrompt: req.systemPrompt ?? "",
+            systemPrompt,
             model,
             messages: history,
             tools: sampleTools,
@@ -218,46 +255,47 @@ export async function runChat(
                 assistantModel = am.model;
                 usage = { input: am.usage.input, output: am.usage.output };
                 const isError = am.stopReason === "error" || am.stopReason === "aborted";
-                const log: NetworkLog = {
-                    id: curId,
-                    timestamp: curStart,
-                    request: curRequest!,
-                    response: {
-                        status: isError ? 500 : 200,
-                        statusText: isError ? (am.errorMessage ?? "error") : "OK",
-                        headers: {},
-                        body: am,
-                        isStream: true,
-                        streamChunks: curChunks,
+                emit({
+                    type: "network_log",
+                    log: {
+                        id: curId,
+                        timestamp: curStart,
+                        request: curRequest!,
+                        response: {
+                            status: isError ? 500 : 200,
+                            statusText: isError ? (am.errorMessage ?? "error") : "OK",
+                            headers: {},
+                            body: am,
+                            isStream: true,
+                            streamChunks: curChunks,
+                        },
+                        error: isError ? { message: am.errorMessage ?? "error" } : null,
+                        durationMs: Date.now() - curStart,
+                        status: isError ? "error" : "success",
                     },
-                    error: isError ? { message: am.errorMessage ?? "error" } : null,
-                    durationMs: Date.now() - curStart,
-                    status: isError ? "error" : "success",
-                };
-                emit({ type: "network_log", log });
+                });
                 break;
             }
         }
     });
 
     try {
-        await agent.prompt(last.text);
+        await agent.prompt(req.text);
     } finally {
         unsub();
     }
 
-    emit({
-        type: "done",
-        message: {
-            id: `msg_${Date.now()}`,
-            role: "assistant",
-            text: accText,
-            reasoning: accReasoning || undefined,
-            toolCalls: toolCalls.size ? [...toolCalls.values()] : undefined,
-            model: assistantModel ?? modelId,
-            usage,
-            durationMs: Date.now() - startedAt,
-            createdAt: startedAt,
-        },
-    });
+    const finalMessage: ChatMessage = {
+        id: uid("msg"),
+        role: "assistant",
+        text: accText,
+        reasoning: accReasoning || undefined,
+        toolCalls: toolCalls.size ? [...toolCalls.values()] : undefined,
+        model: assistantModel ?? modelIdResolved,
+        usage,
+        durationMs: Date.now() - startedAt,
+        createdAt: startedAt,
+    };
+    addMessage(conv.id, finalMessage);
+    emit({ type: "done", message: finalMessage });
 }
