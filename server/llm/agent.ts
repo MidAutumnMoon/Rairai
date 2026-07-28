@@ -13,6 +13,7 @@ import {
     getSettings,
     listProviders,
     updateConversationTitle,
+    NEW_CHAT_TITLE,
 } from "../db.ts";
 import type {
     ChatMessage,
@@ -22,6 +23,7 @@ import type {
     ToolCall,
     TokenUsage,
 } from "../../shared/chat-events.ts";
+import { uid } from "../../shared/id.ts";
 
 const text = (s: string): TextContent => ({ type: "text", text: s });
 
@@ -33,10 +35,6 @@ const zeroUsage: Usage = {
     totalTokens: 0,
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
 };
-
-function uid(prefix: string): string {
-    return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-}
 
 function safeParse<T>(s: string | undefined, fallback: T): T {
     if (!s) return fallback;
@@ -109,6 +107,50 @@ function resultToText(result: unknown): string {
     return JSON.stringify(result);
 }
 
+/** Captures one outbound LLM HTTP call (one assistant turn) for the network
+ *  inspector. The lifecycle is `begin()` (streamFn starts) → `trackChunk()`
+ *  (each delta) → `finalize()` (assistant message completes); that ordering is
+ *  the invariant the agent loop relies on. Encapsulating it here keeps the
+ *  begin→finalize contract in one place instead of spread across loose locals
+ *  where a missed `begin` would silently emit a log with a null request. */
+class NetworkCapture {
+    private id = "";
+    private start = 0;
+    private request: NetworkLog["request"] | null = null;
+    private chunks: { timestamp: number; data: string }[] = [];
+
+    begin(request: NetworkLog["request"]): void {
+        this.id = `nl_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        this.start = Date.now();
+        this.request = request;
+        this.chunks = [];
+    }
+
+    trackChunk(delta: string): void {
+        this.chunks.push({ timestamp: Date.now(), data: delta });
+    }
+
+    finalize(am: AssistantMessage): NetworkLog {
+        const isError = am.stopReason === "error" || am.stopReason === "aborted";
+        return {
+            id: this.id,
+            timestamp: this.start,
+            request: this.request!,
+            response: {
+                status: isError ? 500 : 200,
+                statusText: isError ? (am.errorMessage ?? "error") : "OK",
+                headers: {},
+                body: am,
+                isStream: true,
+                streamChunks: this.chunks,
+            },
+            error: isError ? { message: am.errorMessage ?? "error" } : null,
+            durationMs: Date.now() - this.start,
+            status: isError ? "error" : "success",
+        };
+    }
+}
+
 export async function runChat(
     req: ChatRequest,
     emit: (e: ServerEvent) => void,
@@ -143,23 +185,16 @@ export async function runChat(
         createdAt: Date.now(),
     };
     addMessage(conv.id, userMsg);
-    if (conv.title === "New chat") updateConversationTitle(conv.id, req.text.slice(0, 48));
+    if (conv.title === NEW_CHAT_TITLE) updateConversationTitle(conv.id, req.text.slice(0, 48));
 
     const systemPrompt = conv.systemPrompt ?? settings.defaultSystemPrompt;
     // History excludes the just-persisted user message (conv was loaded before).
     const history = toPiMessages(conv.messages, api, provider, modelIdResolved);
 
-    // Network-log capture state (one entry per LLM call / assistant turn).
-    let curId = "";
-    let curStart = 0;
-    let curRequest: NetworkLog["request"] | null = null;
-    let curChunks: { timestamp: number; data: string }[] = [];
-
+    const capture = new NetworkCapture();
     const realStreamFn = models.streamSimple.bind(models);
     const loggingStreamFn: StreamFn = (m, ctx, options) => {
-        curId = `nl_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-        curStart = Date.now();
-        curRequest = {
+        capture.begin({
             url: m.baseUrl,
             method: "POST",
             headers: { "content-type": "application/json" },
@@ -170,15 +205,13 @@ export async function runChat(
                 tools: (ctx.tools ?? []).map((t) => ({ name: t.name, description: t.description })),
                 messages: ctx.messages,
             },
-        };
-        curChunks = [];
+        });
         return realStreamFn(m, ctx, options);
     };
 
     let accText = "";
     let accReasoning = "";
-    const toolCalls = new Map<string, ToolCall>();
-    const toolStarts = new Map<string, number>();
+    const tools = new Map<string, { entry: ToolCall; startedAt: number }>();
     let usage: TokenUsage | undefined;
     let assistantModel: string | undefined;
     const startedAt = Date.now();
@@ -204,7 +237,7 @@ export async function runChat(
             case "message_update": {
                 const e = event.assistantMessageEvent;
                 if ("delta" in e && typeof e.delta === "string") {
-                    curChunks.push({ timestamp: Date.now(), data: e.delta });
+                    capture.trackChunk(e.delta);
                 }
                 if (e.type === "text_delta") {
                     accText += e.delta;
@@ -220,39 +253,43 @@ export async function runChat(
                         args: JSON.stringify(tc.arguments ?? {}),
                         status: "pending",
                     };
-                    toolCalls.set(tc.id, entry);
-                    toolStarts.set(tc.id, Date.now());
+                    tools.set(tc.id, { entry, startedAt: Date.now() });
                     emit({ type: "tool_call", toolCall: entry });
                 }
                 break;
             }
             case "tool_execution_start": {
-                const existing = toolCalls.get(event.toolCallId) ?? {
-                    id: event.toolCallId,
-                    name: event.toolName,
-                    args: JSON.stringify(event.args ?? {}),
-                    status: "running" as const,
+                const cur = tools.get(event.toolCallId) ?? {
+                    entry: {
+                        id: event.toolCallId,
+                        name: event.toolName,
+                        args: JSON.stringify(event.args ?? {}),
+                        status: "running" as const,
+                    },
+                    startedAt: Date.now(),
                 };
-                existing.status = "running";
-                existing.args = JSON.stringify(event.args ?? {});
-                toolCalls.set(event.toolCallId, existing);
-                toolStarts.set(event.toolCallId, Date.now());
-                emit({ type: "tool_call", toolCall: existing });
+                cur.entry.status = "running";
+                cur.entry.args = JSON.stringify(event.args ?? {});
+                cur.startedAt = Date.now();
+                tools.set(event.toolCallId, cur);
+                emit({ type: "tool_call", toolCall: cur.entry });
                 break;
             }
             case "tool_execution_end": {
-                const existing = toolCalls.get(event.toolCallId) ?? {
-                    id: event.toolCallId,
-                    name: event.toolName,
-                    args: "",
-                    status: "success" as const,
+                const cur = tools.get(event.toolCallId) ?? {
+                    entry: {
+                        id: event.toolCallId,
+                        name: event.toolName,
+                        args: "",
+                        status: "success" as const,
+                    },
+                    startedAt: Date.now(),
                 };
-                existing.status = event.isError ? "error" : "success";
-                existing.result = resultToText(event.result);
-                const start = toolStarts.get(event.toolCallId);
-                if (start) existing.durationMs = Date.now() - start;
-                toolCalls.set(event.toolCallId, existing);
-                emit({ type: "tool_call", toolCall: existing });
+                cur.entry.status = event.isError ? "error" : "success";
+                cur.entry.result = resultToText(event.result);
+                cur.entry.durationMs = Date.now() - cur.startedAt;
+                tools.set(event.toolCallId, cur);
+                emit({ type: "tool_call", toolCall: cur.entry });
                 break;
             }
             case "message_end": {
@@ -260,26 +297,7 @@ export async function runChat(
                 const am = event.message as AssistantMessage;
                 assistantModel = am.model;
                 usage = { input: am.usage.input, output: am.usage.output };
-                const isError = am.stopReason === "error" || am.stopReason === "aborted";
-                emit({
-                    type: "network_log",
-                    log: {
-                        id: curId,
-                        timestamp: curStart,
-                        request: curRequest!,
-                        response: {
-                            status: isError ? 500 : 200,
-                            statusText: isError ? (am.errorMessage ?? "error") : "OK",
-                            headers: {},
-                            body: am,
-                            isStream: true,
-                            streamChunks: curChunks,
-                        },
-                        error: isError ? { message: am.errorMessage ?? "error" } : null,
-                        durationMs: Date.now() - curStart,
-                        status: isError ? "error" : "success",
-                    },
-                });
+                emit({ type: "network_log", log: capture.finalize(am) });
                 break;
             }
         }
@@ -297,7 +315,7 @@ export async function runChat(
         role: "assistant",
         text: accText,
         reasoning: accReasoning || undefined,
-        toolCalls: toolCalls.size ? [...toolCalls.values()] : undefined,
+        toolCalls: tools.size ? [...tools.values()].map((t) => t.entry) : undefined,
         model: assistantModel ?? modelIdResolved,
         usage,
         durationMs: Date.now() - startedAt,

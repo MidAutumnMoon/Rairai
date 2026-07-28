@@ -12,6 +12,7 @@
     import type { Provider, ProviderInput, Settings, ApiType } from "../../shared/api.ts";
     import type { ConversationSummary } from "../../shared/api.ts";
     import { chat } from "../lib/chat.svelte";
+    import { messageOf } from "../../shared/error.ts";
 
     let { onClose }: { onClose?: () => void } = $props();
 
@@ -75,9 +76,6 @@
     let dataResult = $state<string | null>(null);
 
     // --- helpers ---
-    function errMsg(e: unknown): string {
-        return e instanceof Error ? e.message : String(e);
-    }
 
     function credLabel(p: Provider): string {
         if (p.credential.source === "env") {
@@ -103,7 +101,7 @@
         try {
             providers = await listProviders();
         } catch (e) {
-            provError = errMsg(e);
+            provError = messageOf(e);
         } finally {
             loadingProviders = false;
         }
@@ -113,7 +111,7 @@
         try {
             settings = await getSettings();
         } catch (e) {
-            provError = errMsg(e);
+            provError = messageOf(e);
         }
     }
 
@@ -128,7 +126,7 @@
             genProviderId = s.activeProviderId ?? "";
             genModel = s.activeModel ?? "";
         } catch (e) {
-            genError = errMsg(e);
+            genError = messageOf(e);
         }
     }
 
@@ -138,7 +136,7 @@
         try {
             convos = await listConversations();
         } catch (e) {
-            dataError = errMsg(e);
+            dataError = messageOf(e);
         } finally {
             dataLoading = false;
         }
@@ -240,7 +238,7 @@
             closeForm();
             await loadProviders();
         } catch (e) {
-            formError = errMsg(e);
+            formError = messageOf(e);
         } finally {
             formSaving = false;
         }
@@ -258,7 +256,7 @@
             });
             await loadProviders();
         } catch (e) {
-            provError = errMsg(e);
+            provError = messageOf(e);
         }
     }
 
@@ -269,7 +267,7 @@
                 activeModel: p.models[0] ?? null,
             });
         } catch (e) {
-            provError = errMsg(e);
+            provError = messageOf(e);
         }
     }
 
@@ -278,7 +276,7 @@
         try {
             tests[p.id] = await testProvider(p.id);
         } catch (e) {
-            tests[p.id] = { ok: false, error: errMsg(e) };
+            tests[p.id] = { ok: false, error: messageOf(e) };
         }
     }
 
@@ -289,7 +287,7 @@
             if (settings?.activeProviderId === p.id) await loadSettings();
             await loadProviders();
         } catch (e) {
-            provError = errMsg(e);
+            provError = messageOf(e);
         }
     }
 
@@ -316,7 +314,7 @@
                 genSaved = false;
             }, 2500);
         } catch (e) {
-            genError = errMsg(e);
+            genError = messageOf(e);
         } finally {
             genSaving = false;
         }
@@ -333,7 +331,7 @@
             await loadData();
             dataResult = "Deleted all conversations.";
         } catch (e) {
-            dataResult = `Failed: ${e instanceof Error ? e.message : String(e)}`;
+            dataResult = `Failed: ${messageOf(e)}`;
         } finally {
             dataClearing = false;
         }

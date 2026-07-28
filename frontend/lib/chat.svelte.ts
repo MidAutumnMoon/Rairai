@@ -19,10 +19,8 @@ import {
     getMessagesBefore,
     listConversations,
 } from "./api.ts";
-
-function uid(prefix: string): string {
-    return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-}
+import { uid } from "../../shared/id.ts";
+import { messageOf } from "../../shared/error.ts";
 
 /** Stream ServerEvents from POST /api/chat by parsing the SSE wire format. */
 async function streamChat(
@@ -174,7 +172,7 @@ class ChatStore {
         } catch (e) {
             const aborted = e instanceof DOMException && e.name === "AbortError";
             if (!aborted && !this.streamError) {
-                this.streamError = e instanceof Error ? e.message : String(e);
+                this.streamError = messageOf(e);
             }
         } finally {
             // Drop an assistant placeholder that never received content (e.g. aborted).

@@ -37,7 +37,7 @@ function apiLazy(type: ApiType) {
         case "anthropic-messages":
             return anthropicMessagesApi();
         case "faux":
-            return null;
+            throw new Error("faux providers are resolved before API lookup");
     }
 }
 
@@ -121,7 +121,7 @@ export function resolveProviderModel(providerId: string, modelId: string | null)
         baseUrl: p.baseUrl,
         auth,
         models: [model],
-        api: apiLazy(p.apiType)!,
+        api: apiLazy(p.apiType),
     });
     const models = createModels();
     models.setProvider(provider);

@@ -20,6 +20,7 @@ import {
 } from "./db.ts";
 import { sseLine, type ChatRequest, type ServerEvent } from "../shared/chat-events.ts";
 import type { ProviderInput, Settings } from "../shared/api.ts";
+import { messageOf } from "../shared/error.ts";
 
 const app = new Hono();
 
@@ -56,7 +57,7 @@ app.post("/api/providers/:id/test", async (c) => {
     try {
         return c.json(await testProvider(c.req.param("id")));
     } catch (e) {
-        return c.json({ ok: false, error: e instanceof Error ? e.message : String(e) });
+        return c.json({ ok: false, error: messageOf(e) });
     }
 });
 
@@ -125,7 +126,7 @@ app.post("/api/chat", (c) => {
         } catch (e) {
             const err: ServerEvent = {
                 type: "error",
-                message: e instanceof Error ? e.message : String(e),
+                message: messageOf(e),
             };
             await s.write(sseLine(err));
         }
@@ -173,7 +174,7 @@ function testProvider(id: string): Promise<{ ok: boolean; error?: string }> {
         .catch((e) => {
             clearTimeout(timer);
             unsub();
-            settle(false, e instanceof Error ? e.message : String(e));
+            settle(false, messageOf(e));
         });
     return promise;
 }

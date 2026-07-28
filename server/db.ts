@@ -16,6 +16,7 @@ import type {
     Settings,
 } from "../shared/api.ts";
 import type { ChatMessage, ToolCall, TokenUsage } from "../shared/chat-events.ts";
+import { uid } from "../shared/id.ts";
 
 const DATA_DIR = Deno.env.get("RAIRAI_DATA_DIR") ?? "./data";
 const DB_PATH = `${DATA_DIR}/rairai.db`;
@@ -96,10 +97,6 @@ function migrate(d: DatabaseSync): void {
         );
         CREATE INDEX IF NOT EXISTS idx_messages_conv ON messages(conversation_id, seq);
     `);
-}
-
-function uid(prefix: string): string {
-    return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
 // --- Providers ---------------------------------------------------------------
@@ -378,6 +375,9 @@ export function getMessagesBefore(
     return { messages, hasMore: total > rows.length, oldestSeq };
 }
 
+/** Default title given to a new conversation; runChat auto-titles when this is still set. */
+export const NEW_CHAT_TITLE = "New chat";
+
 export function createConversation(input: {
     title?: string;
     providerId?: string | null;
@@ -390,7 +390,7 @@ export function createConversation(input: {
         `INSERT INTO conversations (id, title, created_at, updated_at, provider_id, model, system_prompt)
          VALUES (?, ?, ?, ?, ?, ?, ?)`,
         id,
-        input.title?.trim() || "New chat",
+        input.title?.trim() || NEW_CHAT_TITLE,
         now,
         now,
         input.providerId ?? null,
