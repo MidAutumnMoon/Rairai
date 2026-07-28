@@ -1,7 +1,7 @@
 <script lang="ts">
     import { tick } from "svelte";
     import { chat } from "../lib/chat.svelte";
-    import MessageBubble from "./MessageBubble.svelte";
+    import Message from "./Message.svelte";
 
     let container: HTMLDivElement | undefined = $state();
     let stickToBottom = true;
@@ -48,7 +48,7 @@
     {/if}
     {#if chat.active && chat.active.messages.length}
         {#each chat.active.messages as msg (msg.id)}
-            <MessageBubble {msg} />
+            <Message {msg} />
         {/each}
     {:else}
         <div class="empty">

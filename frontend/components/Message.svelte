@@ -15,6 +15,7 @@
     // Render markdown only for finalized messages; while streaming we show raw
     // text to avoid re-parsing markdown on every token.
     const html = $derived(isStreaming ? "" : renderMarkdown(msg.text));
+    const isAssistant = $derived(msg.role === "assistant");
 
     async function copy() {
         try {
@@ -27,8 +28,16 @@
     }
 </script>
 
-<article class="bubble" class:user={msg.role === "user"}>
-    <div class="role">{msg.role}{msg.model ? ` · ${msg.model}` : ""}</div>
+<article class="msg" class:assistant={isAssistant} class:user={!isAssistant}>
+    <header class="msg-head">
+        <span class="msg-avatar {msg.role}">
+            <Icon name={isAssistant ? "sparkles" : "user"} size={15} />
+        </span>
+        <span class="msg-name">{isAssistant ? "Assistant" : "You"}</span>
+        {#if isAssistant && msg.model}
+            <span class="msg-model">{msg.model}</span>
+        {/if}
+    </header>
 
     {#if msg.reasoning}
         <ReasoningBlock text={msg.reasoning} streaming={isStreaming} />
@@ -42,7 +51,7 @@
         </div>
     {/if}
 
-    <div class="content">
+    <div class="msg-body">
         {#if isStreaming}
             <pre class="raw">{msg.text || "…"}</pre>
         {:else}
@@ -51,10 +60,10 @@
     </div>
 
     {#if !isStreaming}
-        <footer class="meta">
+        <footer class="msg-footer">
             {#if msg.text}
                 <Tooltip label="Copy" class="btn btn-ghost btn-sm" onclick={copy}>
-                    <Icon name={copied ? "check" : "copy"} />
+                    <Icon name={copied ? "check" : "copy"} size={14} />
                 </Tooltip>
             {/if}
             {#if msg.usage}
