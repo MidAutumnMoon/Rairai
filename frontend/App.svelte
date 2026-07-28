@@ -9,6 +9,8 @@
     import Settings from "./components/Settings.svelte";
     import Icon from "./components/ui/Icon.svelte";
     import UITooltip from "./components/ui/Tooltip.svelte";
+
+    // @ts-ignore I don't whether lsp gives error "Cannot find module or type declarations for side-effect import of './app.css'. (ts 2882)" :/
     import "./app.css";
 
     let inspectorOpen = $state(true);
