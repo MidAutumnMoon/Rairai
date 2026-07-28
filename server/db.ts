@@ -6,20 +6,26 @@
 // node:sqlite row-type cast).
 
 import { DatabaseSync } from "node:sqlite";
-import type {
-    ApiType,
-    Assistant,
-    AssistantInput,
-    AssistantSummary,
-    Conversation,
-    ConversationSummary,
-    MessagePage,
-    Provider,
-    ProviderInput,
-    PromptBlock,
-    Settings,
+import {
+    AssistantSchema,
+    AssistantSummarySchema,
+    ConversationSummarySchema,
+    ProviderSchema,
+    SettingsPatchSchema,
+    SettingsSchema,
+    type Assistant,
+    type AssistantInput,
+    type AssistantSummary,
+    type Conversation,
+    type ConversationSummary,
+    type ConversationCreate,
+    type MessagePage,
+    type Provider,
+    type ProviderInput,
+    type Settings,
+    type SettingsPatch,
 } from "../shared/api.ts";
-import type { ChatMessage, ToolCall, TokenUsage } from "../shared/chat-events.ts";
+import { ChatMessageSchema, type ChatMessage } from "../shared/chat-events.ts";
 import { uid } from "../shared/id.ts";
 
 const DATA_DIR = Deno.env.get("RAIRAI_DATA_DIR") ?? "./data";
@@ -138,19 +144,19 @@ interface ProviderRow {
 }
 
 function rowToProvider(r: ProviderRow): Provider {
-    return {
+    return ProviderSchema.parse({
         id: r.id,
         name: r.name,
-        apiType: r.api_type as ApiType,
+        apiType: r.api_type,
         baseUrl: r.base_url,
-        models: JSON.parse(r.models) as string[],
+        models: JSON.parse(r.models),
         credential: {
-            source: r.credential_source as "env" | "inline",
+            source: r.credential_source,
             ref: r.credential_ref ?? undefined,
         },
         enabled: r.enabled === 1,
         createdAt: r.created_at,
-    };
+    });
 }
 
 export function listProviders(): Provider[] {
@@ -246,27 +252,28 @@ const DEFAULT_SETTINGS: Settings = {
 export function getSettings(): Settings {
     const rows = query<{ key: string; value: string }>("SELECT key, value FROM settings");
     const map = new Map(rows.map((r) => [r.key, r.value]));
-    return {
+    return SettingsSchema.parse({
         defaultStream: map.has("defaultStream")
             ? map.get("defaultStream") === "true"
             : DEFAULT_SETTINGS.defaultStream,
         activeProviderId: map.get("activeProviderId") || null,
         activeModel: map.get("activeModel") || null,
         activeAssistantId: map.get("activeAssistantId") || null,
-    };
+    });
 }
 
-export function updateSettings(patch: Partial<Settings>): Settings {
+export function updateSettings(patch: SettingsPatch): Settings {
+    const p = SettingsPatchSchema.parse(patch);
     const upsert = (key: string, value: string) =>
         run(
             "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
             key,
             value,
         );
-    if (patch.defaultStream !== undefined) upsert("defaultStream", patch.defaultStream ? "true" : "false");
-    if (patch.activeProviderId !== undefined) upsert("activeProviderId", patch.activeProviderId ?? "");
-    if (patch.activeModel !== undefined) upsert("activeModel", patch.activeModel ?? "");
-    if (patch.activeAssistantId !== undefined) upsert("activeAssistantId", patch.activeAssistantId ?? "");
+    if (p.defaultStream !== undefined) upsert("defaultStream", p.defaultStream ? "true" : "false");
+    if (p.activeProviderId !== undefined) upsert("activeProviderId", p.activeProviderId ?? "");
+    if (p.activeModel !== undefined) upsert("activeModel", p.activeModel ?? "");
+    if (p.activeAssistantId !== undefined) upsert("activeAssistantId", p.activeAssistantId ?? "");
     return getSettings();
 }
 
@@ -283,26 +290,26 @@ interface AssistantRow {
 }
 
 function rowToAssistant(r: AssistantRow): Assistant {
-    return {
+    return AssistantSchema.parse({
         id: r.id,
         name: r.name,
         emoji: r.emoji,
         description: r.description,
-        prompts: JSON.parse(r.prompts) as PromptBlock[],
+        prompts: JSON.parse(r.prompts),
         createdAt: r.created_at,
         updatedAt: r.updated_at,
-    };
+    });
 }
 
 function rowToAssistantSummary(r: AssistantRow): AssistantSummary {
-    return {
+    return AssistantSummarySchema.parse({
         id: r.id,
         name: r.name,
         emoji: r.emoji,
         description: r.description,
         createdAt: r.created_at,
         updatedAt: r.updated_at,
-    };
+    });
 }
 
 export function listAssistants(): AssistantSummary[] {
@@ -364,7 +371,7 @@ interface ConvRow {
 }
 
 function rowToSummary(r: ConvRow, messageCount: number): ConversationSummary {
-    return {
+    return ConversationSummarySchema.parse({
         id: r.id,
         title: r.title,
         createdAt: r.created_at,
@@ -373,7 +380,7 @@ function rowToSummary(r: ConvRow, messageCount: number): ConversationSummary {
         providerId: r.provider_id,
         model: r.model,
         messageCount,
-    };
+    });
 }
 
 export function listConversations(assistantId?: string): ConversationSummary[] {
@@ -405,17 +412,17 @@ interface MsgRow {
 }
 
 function rowToMessage(r: MsgRow): ChatMessage {
-    return {
+    return ChatMessageSchema.parse({
         id: r.id,
-        role: r.role as "user" | "assistant",
+        role: r.role,
         text: r.text,
         reasoning: r.reasoning ?? undefined,
-        toolCalls: r.tool_calls ? (JSON.parse(r.tool_calls) as ToolCall[]) : undefined,
+        toolCalls: r.tool_calls ? JSON.parse(r.tool_calls) : undefined,
         model: r.model ?? undefined,
-        usage: r.usage ? (JSON.parse(r.usage) as TokenUsage) : undefined,
+        usage: r.usage ? JSON.parse(r.usage) : undefined,
         durationMs: r.duration_ms ?? undefined,
         createdAt: r.created_at,
-    };
+    });
 }
 
 export function getConversation(id: string): Conversation | null {
@@ -486,12 +493,7 @@ export function getMessagesBefore(
 /** Default title given to a new conversation; runChat auto-titles when this is still set. */
 export const NEW_CHAT_TITLE = "New chat";
 
-export function createConversation(input: {
-    assistantId?: string | null;
-    title?: string;
-    providerId?: string | null;
-    model?: string | null;
-}): Conversation {
+export function createConversation(input: ConversationCreate): Conversation {
     const id = uid("conv");
     const now = Date.now();
     run(

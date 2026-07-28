@@ -1,5 +1,6 @@
-import { Hono } from "@hono/hono";
+import { type Context, Hono } from "@hono/hono";
 import { stream } from "@hono/hono/streaming";
+import { z, ZodError, type ZodIssue, type ZodType } from "zod";
 import { Agent } from "@earendil-works/pi-agent-core";
 import { runChat } from "./llm/agent.ts";
 import { resolveProviderModel } from "./llm/providers.ts";
@@ -24,11 +25,48 @@ import {
     updateProvider,
     updateSettings,
 } from "./db.ts";
-import { sseLine, type ChatRequest, type ServerEvent } from "../shared/chat-events.ts";
-import type { AssistantInput, ProviderInput, Settings } from "../shared/api.ts";
+import { sseLine, ChatRequestSchema, type ServerEvent } from "../shared/chat-events.ts";
+import {
+    AssistantInputSchema,
+    ConversationCreateSchema,
+    ProviderInputSchema,
+    SettingsPatchSchema,
+} from "../shared/api.ts";
 import { messageOf } from "../shared/error.ts";
 
 const app = new Hono();
+
+/** A request body that failed its schema. Mapped to 400 by onError - distinct
+ *  from a bare ZodError, which reaches here only from the DB layer (a stored
+ *  row that doesn't match its schema) and is a 500 server-data fault. */
+class ValidationError extends Error {
+    constructor(public issues: ZodIssue[]) {
+        super("request body validation failed");
+        this.name = "ValidationError";
+    }
+}
+
+/** Read + validate a JSON request body against a schema; throws ValidationError
+ *  (-> 400) on a bad body. Centralizes fetch->parse->validate so routes stay
+ *  declarative and no body reaches the DB layer unvalidated. */
+async function body<T>(c: Context, schema: ZodType<T>): Promise<T> {
+    const raw = await c.req.json().catch(() => null);
+    const parsed = schema.safeParse(raw);
+    if (!parsed.success) throw new ValidationError(parsed.error.issues);
+    return parsed.data;
+}
+
+app.onError((e, c) => {
+    if (e instanceof ValidationError) {
+        return c.json({ error: "invalid request body", issues: e.issues }, 400);
+    }
+    if (e instanceof ZodError) {
+        // A ZodError escaping a route is from the DB layer (a stored row that
+        // doesn't match its schema) - a server data fault, not a client error.
+        return c.json({ error: "stored data failed validation", issues: e.issues }, 500);
+    }
+    return c.json({ error: messageOf(e) }, 500);
+});
 
 // Seed an env/faux provider + a default assistant on first run so the app is
 // usable immediately.
@@ -42,12 +80,12 @@ app.get("/api/health", (c) => c.json({ ok: true }));
 app.get("/api/providers", (c) => c.json(listProviders()));
 
 app.post("/api/providers", async (c) => {
-    const input = (await c.req.json()) as ProviderInput;
+    const input = await body(c, ProviderInputSchema);
     return c.json(createProvider(input), 201);
 });
 
 app.put("/api/providers/:id", async (c) => {
-    const input = (await c.req.json()) as ProviderInput;
+    const input = await body(c, ProviderInputSchema);
     const p = updateProvider(c.req.param("id"), input);
     return p ? c.json(p) : c.json({ error: "not found" }, 404);
 });
@@ -74,7 +112,7 @@ app.post("/api/providers/:id/test", async (c) => {
 app.get("/api/settings", (c) => c.json(getSettings()));
 
 app.put("/api/settings", async (c) => {
-    const patch = (await c.req.json()) as Partial<Settings>;
+    const patch = await body(c, SettingsPatchSchema);
     return c.json(updateSettings(patch));
 });
 
@@ -88,12 +126,12 @@ app.get("/api/assistants/:id", (c) => {
 });
 
 app.post("/api/assistants", async (c) => {
-    const input = (await c.req.json()) as AssistantInput;
+    const input = await body(c, AssistantInputSchema);
     return c.json(createAssistant(input), 201);
 });
 
 app.put("/api/assistants/:id", async (c) => {
-    const input = (await c.req.json()) as AssistantInput;
+    const input = await body(c, AssistantInputSchema);
     const a = updateAssistant(c.req.param("id"), input);
     return a ? c.json(a) : c.json({ error: "not found" }, 404);
 });
@@ -112,7 +150,7 @@ app.delete("/api/assistants/:id", (c) => {
 app.get("/api/conversations", (c) => c.json(listConversations(c.req.query("assistantId") || undefined)));
 
 app.post("/api/conversations", async (c) => {
-    const input = (await c.req.json().catch(() => ({}))) as { assistantId?: string; title?: string };
+    const input = await body(c, ConversationCreateSchema);
     return c.json(createConversation(input), 201);
 });
 
@@ -122,10 +160,14 @@ app.get("/api/conversations/:id", (c) => {
 });
 
 app.get("/api/conversations/:id/messages", (c) => {
-    const before = Number(c.req.query("before"));
-    const limit = Number(c.req.query("limit")) || 30;
-    if (!Number.isFinite(before)) return c.json({ error: "missing or invalid 'before'" }, 400);
-    return c.json(getMessagesBefore(c.req.param("id"), before, limit));
+    const parsed = z.object({
+        before: z.coerce.number().int(),
+        limit: z.coerce.number().int().optional().default(30),
+    }).safeParse({ before: c.req.query("before"), limit: c.req.query("limit") });
+    if (!parsed.success) {
+        return c.json({ error: "missing or invalid 'before'", issues: parsed.error.issues }, 400);
+    }
+    return c.json(getMessagesBefore(c.req.param("id"), parsed.data.before, parsed.data.limit));
 });
 
 app.delete("/api/conversations/:id", (c) =>
@@ -133,8 +175,11 @@ app.delete("/api/conversations/:id", (c) =>
 );
 
 // --- Chat (SSE) --------------------------------------------------------------
+// The body is validated before the stream starts: a bad request gets a clean
+// 400, not a half-open SSE connection. Mid-stream errors become `error` events.
 
-app.post("/api/chat", (c) => {
+app.post("/api/chat", async (c) => {
+    const req = await body(c, ChatRequestSchema);
     c.header("Content-Type", "text/event-stream");
     c.header("Cache-Control", "no-cache");
     c.header("Connection", "keep-alive");
@@ -149,14 +194,6 @@ app.post("/api/chat", (c) => {
             abortCtl.signal,
             AbortSignal.timeout(10 * 60 * 1000),
         ]);
-
-        let req: ChatRequest;
-        try {
-            req = await c.req.json();
-        } catch (e) {
-            await s.write(sseLine({ type: "error", message: `Invalid request body: ${e}` }));
-            return;
-        }
 
         try {
             await runChat(req, (ev) => { try { s.write(sseLine(ev)); } catch { /* client gone */ } }, signal);

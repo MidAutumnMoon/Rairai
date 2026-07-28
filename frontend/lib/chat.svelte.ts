@@ -5,11 +5,12 @@
 //
 // Svelte 5 runes: $state on class fields makes them deeply reactive.
 
-import type {
-    ChatMessage,
-    ChatRequest,
-    NetworkLog,
-    ServerEvent,
+import {
+    ServerEventSchema,
+    type ChatMessage,
+    type ChatRequest,
+    type NetworkLog,
+    type ServerEvent,
 } from "../../shared/chat-events.ts";
 import type {
     Assistant,
@@ -62,9 +63,12 @@ async function streamChat(
             const line = frame.trim();
             if (line.startsWith("data: ")) {
                 try {
-                    onEvent(JSON.parse(line.slice(6)) as ServerEvent);
+                    const ev = ServerEventSchema.safeParse(JSON.parse(line.slice(6)));
+                    if (ev.success) onEvent(ev.data);
+                    // a schema-invalid event is skipped, not thrown: one bad
+                    // frame must not kill an in-progress stream.
                 } catch {
-                    // ignore malformed frames (partial flushes)
+                    // ignore malformed frames (partial flushes / bad JSON)
                 }
             }
         }

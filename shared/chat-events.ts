@@ -8,51 +8,63 @@
 // types (AgentEvent / AssistantMessageEvent) over the wire. The frontend is a
 // consumer of a small, stable protocol; the backend translates from pi's
 // richer event surface into this minimal one.
+//
+// Every shape here is a zod schema; the exported TS types are z.infer of those
+// schemas, so the runtime validator and the compile-time type can never drift.
+// The backend .parse()s requests; the frontend safeParse()s each SSE event.
+
+import { z } from "zod";
 
 // ---------------------------------------------------------------------------
 // Request: frontend -> backend
 // ---------------------------------------------------------------------------
 
 /** A chat message as stored/owned by the frontend. */
-export interface ChatMessage {
-    id: string;
-    role: "user" | "assistant";
-    /** Main text content (markdown). */
-    text: string;
-    /** Accumulated reasoning/thinking text, if the model produced any. */
-    reasoning?: string;
-    /** Tool calls made during this assistant turn. Results are embedded. */
-    toolCalls?: ToolCall[];
-    /** Model id that produced this (assistant messages). */
-    model?: string;
-    usage?: TokenUsage;
-    durationMs?: number;
-    createdAt: number;
-}
+export const MessageRoleSchema = z.enum(["user", "assistant"]);
 
-export interface ToolCall {
+export const TokenUsageSchema = z.object({
+    input: z.number(),
+    output: z.number(),
+});
+export type TokenUsage = z.infer<typeof TokenUsageSchema>;
+
+export const ToolCallSchema = z.object({
     /** pi tool_call_id (provider-assigned) or a synthetic id. */
-    id: string;
-    name: string;
+    id: z.string(),
+    name: z.string(),
     /** Raw JSON string of the call arguments. */
-    args: string;
+    args: z.string(),
     /** Raw JSON string of the result (success) or error message. */
-    result?: string;
-    status: "pending" | "running" | "success" | "error";
-    durationMs?: number;
-}
+    result: z.string().optional(),
+    status: z.enum(["pending", "running", "success", "error"]),
+    durationMs: z.number().optional(),
+});
+export type ToolCall = z.infer<typeof ToolCallSchema>;
 
-export interface TokenUsage {
-    input: number;
-    output: number;
-}
+export const ChatMessageSchema = z.object({
+    id: z.string(),
+    role: MessageRoleSchema,
+    /** Main text content (markdown). */
+    text: z.string(),
+    /** Accumulated reasoning/thinking text, if the model produced any. */
+    reasoning: z.string().optional(),
+    /** Tool calls made during this assistant turn. Results are embedded. */
+    toolCalls: z.array(ToolCallSchema).optional(),
+    /** Model id that produced this (assistant messages). */
+    model: z.string().optional(),
+    usage: TokenUsageSchema.optional(),
+    durationMs: z.number().optional(),
+    createdAt: z.number(),
+});
+export type ChatMessage = z.infer<typeof ChatMessageSchema>;
 
 /** Body of POST /api/chat. The backend owns conversation history - the client
  *  just identifies the conversation and sends the new user text. */
-export interface ChatRequest {
-    conversationId: string;
-    text: string;
-}
+export const ChatRequestSchema = z.object({
+    conversationId: z.string(),
+    text: z.string(),
+});
+export type ChatRequest = z.infer<typeof ChatRequestSchema>;
 
 // ---------------------------------------------------------------------------
 // Response: backend -> frontend (SSE stream of ServerEvent)
@@ -65,13 +77,15 @@ export interface ChatRequest {
  * carry the full current state of one tool call; the client replaces by id.
  * `done` carries the finalized assistant message to commit to the conversation.
  */
-export type ServerEvent =
-    | { type: "text"; delta: string }
-    | { type: "reasoning"; delta: string }
-    | { type: "tool_call"; toolCall: ToolCall }
-    | { type: "network_log"; log: NetworkLog }
-    | { type: "done"; message: ChatMessage }
-    | { type: "error"; message: string };
+export const ServerEventSchema = z.discriminatedUnion("type", [
+    z.object({ type: z.literal("text"), delta: z.string() }),
+    z.object({ type: z.literal("reasoning"), delta: z.string() }),
+    z.object({ type: z.literal("tool_call"), toolCall: ToolCallSchema }),
+    z.object({ type: z.literal("network_log"), log: z.lazy(() => NetworkLogSchema) }),
+    z.object({ type: z.literal("done"), message: ChatMessageSchema }),
+    z.object({ type: z.literal("error"), message: z.string() }),
+]);
+export type ServerEvent = z.infer<typeof ServerEventSchema>;
 
 // ---------------------------------------------------------------------------
 // Network log entry (the request inspector's data)
@@ -84,31 +98,37 @@ export type ServerEvent =
  *
  * For streaming responses, chunks are captured individually AND the joined body
  * is stored - the inspector can show either the aggregated body or per-chunk.
+ *
+ * The request/response `body` fields are `unknown`: they hold arbitrary
+ * provider payloads (raw OpenAI/Anthropic JSON, or an AssistantMessage). The
+ * envelope is validated; the payload is intentionally left loose so a provider
+ * schema change never breaks the inspector.
  */
-export interface NetworkLog {
-    id: string;
-    timestamp: number;
-    request: {
-        url: string;
-        method: string;
-        headers: Record<string, string>;
+export const NetworkLogSchema = z.object({
+    id: z.string(),
+    timestamp: z.number(),
+    request: z.object({
+        url: z.string(),
+        method: z.string(),
+        headers: z.record(z.string()),
         /** Parsed JSON body if the request was JSON, else the raw string. */
-        body: unknown;
-    };
-    response: {
-        status: number;
-        statusText: string;
-        headers: Record<string, string>;
+        body: z.unknown(),
+    }),
+    response: z.object({
+        status: z.number(),
+        statusText: z.string(),
+        headers: z.record(z.string()),
         /** Parsed JSON body, or raw string. */
-        body: unknown;
-        isStream: boolean;
+        body: z.unknown(),
+        isStream: z.boolean(),
         /** For SSE streams: each chunk with its timestamp. */
-        streamChunks?: { timestamp: number; data: string }[];
-    } | null;
-    error: { message: string } | null;
-    durationMs: number | null;
-    status: "pending" | "streaming" | "success" | "error";
-}
+        streamChunks: z.array(z.object({ timestamp: z.number(), data: z.string() })).optional(),
+    }).nullable(),
+    error: z.object({ message: z.string() }).nullable(),
+    durationMs: z.number().nullable(),
+    status: z.enum(["pending", "streaming", "success", "error"]),
+});
+export type NetworkLog = z.infer<typeof NetworkLogSchema>;
 
 /** SSE helper: format an event as an SSE `data:` line. */
 export function sseLine(event: ServerEvent): string {
