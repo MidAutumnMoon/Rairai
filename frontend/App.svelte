@@ -6,6 +6,7 @@
     import ChatStream from "./components/ChatStream.svelte";
     import ChatInput from "./components/ChatInput.svelte";
     import NetworkInspector from "./components/NetworkInspector.svelte";
+    import ManageAssistants from "./components/ManageAssistants.svelte";
     import Settings from "./components/Settings.svelte";
     import AssistantEditor from "./components/AssistantEditor.svelte";
     import Icon from "./components/ui/Icon.svelte";
@@ -110,40 +111,7 @@
                 </div>
 
                 <div class="drawer manage-drawer" class:open={manageOpen}>
-                    <header class="drawer-head">
-                        <span class="drawer-title">Assistants</span>
-                        <button class="btn btn-icon btn-sm" onclick={() => (manageOpen = false)} aria-label="Close">
-                            <Icon name="x" size={16} />
-                        </button>
-                    </header>
-                    <div class="drawer-body">
-                        <button class="btn btn-primary btn-sm drawer-new" onclick={() => openAssistantEditor(null)}>
-                            <Icon name="plus" size={14} /> New assistant
-                        </button>
-                        {#each chat.assistants as a (a.id)}
-                            <div class="manage-row" class:active={a.id === chat.activeAssistantId}>
-                                <button
-                                    class="manage-select"
-                                    onclick={() => { chat.selectAssistant(a.id); manageOpen = false; }}
-                                    title={a.description || a.name}
-                                >
-                                    <span class="emoji">{a.emoji}</span>
-                                    <span class="manage-info">
-                                        <span class="manage-name">{a.name}</span>
-                                        {#if a.description}<span class="manage-desc">{a.description}</span>{/if}
-                                    </span>
-                                </button>
-                                <button
-                                    class="btn btn-icon btn-sm"
-                                    onclick={() => openAssistantEditor(a.id)}
-                                    title="Edit assistant"
-                                    aria-label="Edit assistant"
-                                >
-                                    <Icon name="pencil" size={14} />
-                                </button>
-                            </div>
-                        {/each}
-                    </div>
+                    <ManageAssistants onClose={() => (manageOpen = false)} onEdit={openAssistantEditor} />
                 </div>
             {/if}
         </main>

@@ -470,8 +470,13 @@
     }
     .manage-drawer {
         width: min(360px, 50vw);
+    }
+    .manage {
         display: flex;
         flex-direction: column;
+        background: var(--surface);
+        height: 100%;
+        min-height: 0;
     }
     .drawer-head {
         display: flex;
