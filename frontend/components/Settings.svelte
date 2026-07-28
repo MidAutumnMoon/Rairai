@@ -344,15 +344,14 @@
         <span class="view-title">Settings</span>
     </header>
 
-    <div class="view-body">
-        <div class="view-inner">
-            <Tabs.Root bind:value={tab} class="settings-shell">
-                    <Tabs.List class="tabs-list">
-                        <Tabs.Trigger class="tab-trigger" value="providers">Providers</Tabs.Trigger>
-                        <Tabs.Trigger class="tab-trigger" value="general">General</Tabs.Trigger>
-                        <Tabs.Trigger class="tab-trigger" value="data">Data</Tabs.Trigger>
-                    </Tabs.List>
-
+    <div class="settings-layout">
+        <Tabs.Root bind:value={tab} orientation="vertical" class="settings-tabs">
+            <Tabs.List class="settings-nav">
+                <Tabs.Trigger class="settings-nav-item" value="providers">Providers</Tabs.Trigger>
+                <Tabs.Trigger class="settings-nav-item" value="general">General</Tabs.Trigger>
+                <Tabs.Trigger class="settings-nav-item" value="data">Data</Tabs.Trigger>
+            </Tabs.List>
+            <div class="settings-content">
                     <Tabs.Content value="providers">
                         <div class="toolbar">
                             <span class="count">
@@ -585,7 +584,7 @@
                             </p>
                         </div>
                     </Tabs.Content>
-                </Tabs.Root>
             </div>
-        </div>
+        </Tabs.Root>
+    </div>
     </section>

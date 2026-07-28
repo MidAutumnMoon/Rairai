@@ -13,38 +13,35 @@
     import "./app.css";
 
     // Single full-page view at a time: chat (default), settings, or the
-    // assistant editor. The inspector is a slide-over drawer, closed by default
-    // (it's a debug tool, not a permanent panel).
+    // assistant editor. Overlays: inspector drawer (debug) + manage-assistants
+    // drawer (assistant list/switch/create/edit). Both default closed.
     let view = $state<"chat" | "settings" | "assistant">("chat");
     let editingAssistantId = $state<string | null>(null);
     let inspectorOpen = $state(false);
+    let manageOpen = $state(false);
 
     onMount(() => {
         chat.init();
     });
 
-    // Clicking a chat / assistant / "new chat" in the sidebar returns to the
-    // chat view from any full-page view (Settings / assistant editor). Done
-    // explicitly (not via an activeId effect) so it works even when the target
-    // is already the active chat.
     function navigateToChat() {
         view = "chat";
     }
-
     function openSettings() {
         view = "settings";
     }
     function openAssistantEditor(id: string | null) {
         editingAssistantId = id;
         view = "assistant";
+        manageOpen = false;
     }
 </script>
 
 <Tooltip.Provider>
     <div class="app">
         <Sidebar
+            onOpenManage={() => (manageOpen = true)}
             onOpenSettings={openSettings}
-            onEditAssistant={openAssistantEditor}
             onNavigateToChat={navigateToChat}
         />
 
@@ -79,6 +76,45 @@
                     <NetworkInspector onClose={() => (inspectorOpen = false)} />
                 </div>
             {/if}
+
+            <!-- Manage assistants drawer (overlay; opened from the sidebar's
+                 active-assistant card). List / switch / create / edit. -->
+            <div class="manage-drawer" class:open={manageOpen}>
+                <header class="drawer-head">
+                    <span class="drawer-title">Assistants</span>
+                    <button class="btn btn-icon btn-sm" onclick={() => (manageOpen = false)} aria-label="Close">
+                        <Icon name="x" size={16} />
+                    </button>
+                </header>
+                <div class="drawer-body">
+                    <button class="btn btn-primary btn-sm drawer-new" onclick={() => openAssistantEditor(null)}>
+                        <Icon name="plus" size={14} /> New assistant
+                    </button>
+                    {#each chat.assistants as a (a.id)}
+                        <div class="manage-row" class:active={a.id === chat.activeAssistantId}>
+                            <button
+                                class="manage-select"
+                                onclick={() => { chat.selectAssistant(a.id); manageOpen = false; }}
+                                title={a.description || a.name}
+                            >
+                                <span class="emoji">{a.emoji}</span>
+                                <span class="manage-info">
+                                    <span class="manage-name">{a.name}</span>
+                                    {#if a.description}<span class="manage-desc">{a.description}</span>{/if}
+                                </span>
+                            </button>
+                            <button
+                                class="btn btn-icon btn-sm"
+                                onclick={() => openAssistantEditor(a.id)}
+                                title="Edit assistant"
+                                aria-label="Edit assistant"
+                            >
+                                <Icon name="pencil" size={14} />
+                            </button>
+                        </div>
+                    {/each}
+                </div>
+            </div>
         </main>
     </div>
 </Tooltip.Provider>
