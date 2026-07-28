@@ -37,12 +37,54 @@ export interface ProviderInput {
     enabled: boolean;
     key?: string;
 }
+/** Role of a prompt block in an assistant's prompt list. `history` is a marker
+ *  - not sent to the model - that says where the conversation history is
+ *  spliced in. Blocks before it are the preamble; blocks after are appended. */
+export type PromptRole = "system" | "user" | "assistant" | "history";
+
+export interface PromptBlock {
+    id: string;
+    role: PromptRole;
+    /** Short identifier shown in the editor (e.g. "Main", "Jailbreak"). */
+    name: string;
+    /** Prompt text (empty for the history marker). */
+    content: string;
+    enabled: boolean;
+}
+
+/** A persona/preset: a named, ordered list of prompt blocks. Each assistant
+ *  owns its conversations (Cherry Studio-style). */
+export interface Assistant {
+    id: string;
+    name: string;
+    emoji: string;
+    description: string;
+    prompts: PromptBlock[];
+    createdAt: number;
+    updatedAt: number;
+}
+
+export interface AssistantSummary {
+    id: string;
+    name: string;
+    emoji: string;
+    description: string;
+    createdAt: number;
+    updatedAt: number;
+}
+
+export interface AssistantInput {
+    name: string;
+    emoji: string;
+    description: string;
+    prompts: PromptBlock[];
+}
 
 export interface Settings {
-    defaultSystemPrompt: string;
     defaultStream: boolean;
     activeProviderId: string | null;
     activeModel: string | null;
+    activeAssistantId: string | null;
 }
 
 export interface ConversationSummary {
@@ -50,14 +92,13 @@ export interface ConversationSummary {
     title: string;
     createdAt: number;
     updatedAt: number;
+    assistantId: string | null;
     providerId: string | null;
     model: string | null;
     messageCount: number;
 }
 
 export interface Conversation extends ConversationSummary {
-    /** null = use Settings.defaultSystemPrompt. */
-    systemPrompt: string | null;
     /** The loaded range only (the recent tail on open, grown via loadOlder).
      *  Older messages are fetched on demand - never the whole conversation. */
     messages: ChatMessage[];

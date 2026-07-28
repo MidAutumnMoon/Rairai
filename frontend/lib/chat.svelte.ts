@@ -11,13 +11,25 @@ import type {
     NetworkLog,
     ServerEvent,
 } from "../../shared/chat-events.ts";
-import type { Conversation, ConversationSummary } from "../../shared/api.ts";
+import type {
+    Assistant,
+    AssistantInput,
+    AssistantSummary,
+    Conversation,
+    ConversationSummary,
+} from "../../shared/api.ts";
 import {
+    createAssistant as createAssistantApi,
     createConversation,
+    deleteAssistant as deleteAssistantApi,
     deleteConversation,
     getConversation,
     getMessagesBefore,
+    getSettings,
+    listAssistants,
     listConversations,
+    updateAssistant as updateAssistantApi,
+    updateSettings,
 } from "./api.ts";
 import { uid } from "../../shared/id.ts";
 import { messageOf } from "../../shared/error.ts";
@@ -60,6 +72,8 @@ async function streamChat(
 }
 
 class ChatStore {
+    assistants = $state<AssistantSummary[]>([]);
+    activeAssistantId = $state<string | null>(null);
     conversations = $state<ConversationSummary[]>([]);
     activeId = $state<string | null>(null);
     activeConversation = $state<Conversation | null>(null);
@@ -73,18 +87,37 @@ class ChatStore {
         return this.activeConversation;
     }
 
-    /** Load the conversation list; open the most recent, or start a new one. */
+    /** Load assistants, activate the configured (or first) one, then open its
+     *  most recent conversation or start a new one. */
     async init(): Promise<void> {
+        await this.loadAssistants();
+        const settings = await getSettings();
+        this.activeAssistantId = settings.activeAssistantId
+            ?? this.assistants[0]?.id
+            ?? null;
+        if (!this.activeAssistantId) return;
         await this.loadConversations();
-        if (this.conversations.length) {
-            await this.open(this.conversations[0].id);
-        } else {
-            await this.newConversation();
-        }
+        if (this.conversations.length) await this.open(this.conversations[0].id);
+        else await this.newConversation();
+    }
+
+    async loadAssistants(): Promise<void> {
+        this.assistants = await listAssistants();
     }
 
     async loadConversations(): Promise<void> {
-        this.conversations = await listConversations();
+        this.conversations = await listConversations(this.activeAssistantId ?? undefined);
+    }
+
+    /** Switch the active assistant (persists to settings) and open its chats. */
+    async selectAssistant(id: string): Promise<void> {
+        if (this.isStreaming) this.abort();
+        this.activeAssistantId = id;
+        await updateSettings({ activeAssistantId: id });
+        await this.loadConversations();
+        this.networkLogs = [];
+        if (this.conversations.length) await this.open(this.conversations[0].id);
+        else await this.newConversation();
     }
 
     async open(id: string): Promise<void> {
@@ -109,7 +142,7 @@ class ChatStore {
     }
 
     async newConversation(): Promise<void> {
-        const conv = await createConversation({});
+        const conv = await createConversation({ assistantId: this.activeAssistantId ?? undefined });
         this.activeConversation = conv;
         this.activeId = conv.id;
         await this.loadConversations();
@@ -127,6 +160,28 @@ class ChatStore {
         } else if (!this.conversations.length) {
             await this.newConversation();
         }
+    }
+
+    async createAssistant(input: AssistantInput): Promise<Assistant> {
+        const a = await createAssistantApi(input);
+        await this.loadAssistants();
+        return a;
+    }
+
+    async saveAssistant(id: string, input: AssistantInput): Promise<void> {
+        await updateAssistantApi(id, input);
+        await this.loadAssistants();
+    }
+
+    async deleteAssistant(id: string): Promise<void> {
+        await deleteAssistantApi(id);
+        await this.loadAssistants();
+        if (this.activeAssistantId !== id) return;
+        this.activeAssistantId = this.assistants[0]?.id ?? null;
+        if (this.activeAssistantId) await updateSettings({ activeAssistantId: this.activeAssistantId });
+        await this.loadConversations();
+        if (this.conversations.length) await this.open(this.conversations[0].id);
+        else if (this.activeAssistantId) await this.newConversation();
     }
 
     async sendMessage(text: string): Promise<void> {

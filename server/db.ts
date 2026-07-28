@@ -8,11 +8,15 @@
 import { DatabaseSync } from "node:sqlite";
 import type {
     ApiType,
+    Assistant,
+    AssistantInput,
+    AssistantSummary,
     Conversation,
     ConversationSummary,
     MessagePage,
     Provider,
     ProviderInput,
+    PromptBlock,
     Settings,
 } from "../shared/api.ts";
 import type { ChatMessage, ToolCall, TokenUsage } from "../shared/chat-events.ts";
@@ -53,6 +57,11 @@ function run(sql: string, ...params: Bind[]): { changes: number } {
     return getDb().prepare(sql).run(...params) as { changes: number };
 }
 
+function hasColumn(d: DatabaseSync, table: string, col: string): boolean {
+    const rows = d.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+    return rows.some((r) => r.name === col);
+}
+
 function migrate(d: DatabaseSync): void {
     d.exec(`
         CREATE TABLE IF NOT EXISTS providers (
@@ -71,14 +80,24 @@ function migrate(d: DatabaseSync): void {
             key   TEXT PRIMARY KEY,
             value TEXT NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS assistants (
+            id          TEXT PRIMARY KEY,
+            name        TEXT NOT NULL,
+            emoji       TEXT NOT NULL,
+            description TEXT NOT NULL DEFAULT '',
+            prompts     TEXT NOT NULL DEFAULT '[]',
+            created_at  INTEGER NOT NULL,
+            updated_at  INTEGER NOT NULL
+        );
         CREATE TABLE IF NOT EXISTS conversations (
             id            TEXT PRIMARY KEY,
             title         TEXT NOT NULL,
             created_at    INTEGER NOT NULL,
             updated_at    INTEGER NOT NULL,
+            assistant_id TEXT,
             provider_id   TEXT,
             model         TEXT,
-            system_prompt TEXT
+            FOREIGN KEY (assistant_id) REFERENCES assistants(id) ON DELETE SET NULL
         );
         CREATE TABLE IF NOT EXISTS messages (
             id              TEXT PRIMARY KEY,
@@ -97,6 +116,10 @@ function migrate(d: DatabaseSync): void {
         );
         CREATE INDEX IF NOT EXISTS idx_messages_conv ON messages(conversation_id, seq);
     `);
+    // Pre-assistant DBs lack the assistant_id column; add it idempotently.
+    if (!hasColumn(d, "conversations", "assistant_id")) {
+        d.exec("ALTER TABLE conversations ADD COLUMN assistant_id TEXT");
+    }
 }
 
 // --- Providers ---------------------------------------------------------------
@@ -214,22 +237,22 @@ export function deleteProvider(id: string): boolean {
 // --- Settings ----------------------------------------------------------------
 
 const DEFAULT_SETTINGS: Settings = {
-    defaultSystemPrompt: "You are a helpful assistant.",
     defaultStream: true,
     activeProviderId: null,
     activeModel: null,
+    activeAssistantId: null,
 };
 
 export function getSettings(): Settings {
     const rows = query<{ key: string; value: string }>("SELECT key, value FROM settings");
     const map = new Map(rows.map((r) => [r.key, r.value]));
     return {
-        defaultSystemPrompt: map.get("defaultSystemPrompt") ?? DEFAULT_SETTINGS.defaultSystemPrompt,
         defaultStream: map.has("defaultStream")
             ? map.get("defaultStream") === "true"
             : DEFAULT_SETTINGS.defaultStream,
         activeProviderId: map.get("activeProviderId") || null,
         activeModel: map.get("activeModel") || null,
+        activeAssistantId: map.get("activeAssistantId") || null,
     };
 }
 
@@ -240,11 +263,92 @@ export function updateSettings(patch: Partial<Settings>): Settings {
             key,
             value,
         );
-    if (patch.defaultSystemPrompt !== undefined) upsert("defaultSystemPrompt", patch.defaultSystemPrompt);
     if (patch.defaultStream !== undefined) upsert("defaultStream", patch.defaultStream ? "true" : "false");
     if (patch.activeProviderId !== undefined) upsert("activeProviderId", patch.activeProviderId ?? "");
     if (patch.activeModel !== undefined) upsert("activeModel", patch.activeModel ?? "");
+    if (patch.activeAssistantId !== undefined) upsert("activeAssistantId", patch.activeAssistantId ?? "");
     return getSettings();
+}
+
+// --- Assistants ---------------------------------------------------------------
+
+interface AssistantRow {
+    id: string;
+    name: string;
+    emoji: string;
+    description: string;
+    prompts: string;
+    created_at: number;
+    updated_at: number;
+}
+
+function rowToAssistant(r: AssistantRow): Assistant {
+    return {
+        id: r.id,
+        name: r.name,
+        emoji: r.emoji,
+        description: r.description,
+        prompts: JSON.parse(r.prompts) as PromptBlock[],
+        createdAt: r.created_at,
+        updatedAt: r.updated_at,
+    };
+}
+
+function rowToAssistantSummary(r: AssistantRow): AssistantSummary {
+    return {
+        id: r.id,
+        name: r.name,
+        emoji: r.emoji,
+        description: r.description,
+        createdAt: r.created_at,
+        updatedAt: r.updated_at,
+    };
+}
+
+export function listAssistants(): AssistantSummary[] {
+    return query<AssistantRow>("SELECT * FROM assistants ORDER BY created_at ASC")
+        .map(rowToAssistantSummary);
+}
+
+export function getAssistant(id: string): Assistant | null {
+    const r = queryOne<AssistantRow>("SELECT * FROM assistants WHERE id = ?", id);
+    return r ? rowToAssistant(r) : null;
+}
+
+export function createAssistant(input: AssistantInput): Assistant {
+    const id = uid("asst");
+    const now = Date.now();
+    run(
+        `INSERT INTO assistants (id, name, emoji, description, prompts, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        id,
+        input.name,
+        input.emoji,
+        input.description,
+        JSON.stringify(input.prompts),
+        now,
+        now,
+    );
+    return getAssistant(id)!;
+}
+
+export function updateAssistant(id: string, input: AssistantInput): Assistant | null {
+    const now = Date.now();
+    const changes = run(
+        `UPDATE assistants SET name = ?, emoji = ?, description = ?, prompts = ?, updated_at = ?
+         WHERE id = ?`,
+        input.name,
+        input.emoji,
+        input.description,
+        JSON.stringify(input.prompts),
+        now,
+        id,
+    ).changes;
+    return changes ? getAssistant(id) : null;
+}
+
+export function deleteAssistant(id: string): boolean {
+    return run("DELETE FROM assistants WHERE id = ?", id).changes > 0;
 }
 
 // --- Conversations + messages ------------------------------------------------
@@ -254,9 +358,9 @@ interface ConvRow {
     title: string;
     created_at: number;
     updated_at: number;
+    assistant_id: string | null;
     provider_id: string | null;
     model: string | null;
-    system_prompt: string | null;
 }
 
 function rowToSummary(r: ConvRow, messageCount: number): ConversationSummary {
@@ -265,14 +369,20 @@ function rowToSummary(r: ConvRow, messageCount: number): ConversationSummary {
         title: r.title,
         createdAt: r.created_at,
         updatedAt: r.updated_at,
+        assistantId: r.assistant_id,
         providerId: r.provider_id,
         model: r.model,
         messageCount,
     };
 }
 
-export function listConversations(): ConversationSummary[] {
-    const rows = query<ConvRow>("SELECT * FROM conversations ORDER BY updated_at DESC");
+export function listConversations(assistantId?: string): ConversationSummary[] {
+    const rows = assistantId
+        ? query<ConvRow>(
+            "SELECT * FROM conversations WHERE assistant_id = ? ORDER BY updated_at DESC",
+            assistantId,
+        )
+        : query<ConvRow>("SELECT * FROM conversations ORDER BY updated_at DESC");
     const counts = query<{ conversation_id: string; n: number }>(
         "SELECT conversation_id, COUNT(*) AS n FROM messages GROUP BY conversation_id",
     );
@@ -318,7 +428,6 @@ export function getConversation(id: string): Conversation | null {
     const summary = rowToSummary(r, msgs.length);
     return {
         ...summary,
-        systemPrompt: r.system_prompt,
         messages: msgs.map(rowToMessage),
         hasMore: false,
         oldestSeq: null,
@@ -346,7 +455,6 @@ export function getConversationPage(id: string, limit = PAGE_SIZE): Conversation
     const oldestSeq = tail.length ? tail[tail.length - 1].seq : null;
     return {
         ...rowToSummary(r, total),
-        systemPrompt: r.system_prompt,
         messages,
         hasMore: total > tail.length,
         oldestSeq,
@@ -379,23 +487,23 @@ export function getMessagesBefore(
 export const NEW_CHAT_TITLE = "New chat";
 
 export function createConversation(input: {
+    assistantId?: string | null;
     title?: string;
     providerId?: string | null;
     model?: string | null;
-    systemPrompt?: string | null;
 }): Conversation {
     const id = uid("conv");
     const now = Date.now();
     run(
-        `INSERT INTO conversations (id, title, created_at, updated_at, provider_id, model, system_prompt)
+        `INSERT INTO conversations (id, title, created_at, updated_at, assistant_id, provider_id, model)
          VALUES (?, ?, ?, ?, ?, ?, ?)`,
         id,
         input.title?.trim() || NEW_CHAT_TITLE,
         now,
         now,
+        input.assistantId ?? null,
         input.providerId ?? null,
         input.model ?? null,
-        input.systemPrompt ?? null,
     );
     return getConversation(id)!;
 }
@@ -483,4 +591,31 @@ export function ensureBootstrapProvider(): void {
     if (getSettings().activeProviderId === null) {
         updateSettings({ activeProviderId: created.id, activeModel: created.models[0] ?? null });
     }
+}
+
+/** Seed a default assistant on first run and make it active. Also adopts any
+ *  conversations from a pre-assistant DB (assistant_id IS NULL) into it. */
+export function ensureBootstrapAssistant(): void {
+    const count = queryOne<{ n: number }>("SELECT COUNT(*) AS n FROM assistants")!;
+    let defaultId: string;
+    if (count.n > 0) {
+        defaultId = queryOne<{ id: string }>("SELECT id FROM assistants ORDER BY created_at ASC LIMIT 1")!
+            .id;
+    } else {
+        const created = createAssistant({
+            name: "Default",
+            emoji: "✨",
+            description: "The default assistant.",
+            prompts: [
+                { id: uid("blk"), role: "system", name: "Main", content: "You are a helpful assistant.", enabled: true },
+                { id: uid("blk"), role: "history", name: "History", content: "", enabled: true },
+            ],
+        });
+        defaultId = created.id;
+    }
+    if (getSettings().activeAssistantId === null) {
+        updateSettings({ activeAssistantId: defaultId });
+    }
+    // Adopt orphaned conversations (pre-assistant DBs) into the default assistant.
+    run("UPDATE conversations SET assistant_id = ? WHERE assistant_id IS NULL", defaultId);
 }

@@ -4,28 +4,36 @@ import { Agent } from "@earendil-works/pi-agent-core";
 import { runChat } from "./llm/agent.ts";
 import { resolveProviderModel } from "./llm/providers.ts";
 import {
+    createAssistant,
     createConversation,
     createProvider,
+    deleteAssistant,
     deleteConversation,
     deleteProvider,
+    ensureBootstrapAssistant,
     ensureBootstrapProvider,
+    getAssistant,
     getConversationPage,
     getMessagesBefore,
     getProvider,
     getSettings,
+    listAssistants,
     listConversations,
     listProviders,
+    updateAssistant,
     updateProvider,
     updateSettings,
 } from "./db.ts";
 import { sseLine, type ChatRequest, type ServerEvent } from "../shared/chat-events.ts";
-import type { ProviderInput, Settings } from "../shared/api.ts";
+import type { AssistantInput, ProviderInput, Settings } from "../shared/api.ts";
 import { messageOf } from "../shared/error.ts";
 
 const app = new Hono();
 
-// Seed an env/faux provider on first run so the app is usable immediately.
+// Seed an env/faux provider + a default assistant on first run so the app is
+// usable immediately.
 ensureBootstrapProvider();
+ensureBootstrapAssistant();
 
 app.get("/api/health", (c) => c.json({ ok: true }));
 
@@ -70,12 +78,41 @@ app.put("/api/settings", async (c) => {
     return c.json(updateSettings(patch));
 });
 
+// --- Assistants ---------------------------------------------------------------
+
+app.get("/api/assistants", (c) => c.json(listAssistants()));
+
+app.get("/api/assistants/:id", (c) => {
+    const a = getAssistant(c.req.param("id"));
+    return a ? c.json(a) : c.json({ error: "not found" }, 404);
+});
+
+app.post("/api/assistants", async (c) => {
+    const input = (await c.req.json()) as AssistantInput;
+    return c.json(createAssistant(input), 201);
+});
+
+app.put("/api/assistants/:id", async (c) => {
+    const input = (await c.req.json()) as AssistantInput;
+    const a = updateAssistant(c.req.param("id"), input);
+    return a ? c.json(a) : c.json({ error: "not found" }, 404);
+});
+
+app.delete("/api/assistants/:id", (c) => {
+    const id = c.req.param("id");
+    const deleted = deleteAssistant(id);
+    if (deleted && getSettings().activeAssistantId === id) {
+        updateSettings({ activeAssistantId: null });
+    }
+    return deleted ? c.json({ ok: true }) : c.json({ error: "not found" }, 404);
+});
+
 // --- Conversations -----------------------------------------------------------
 
-app.get("/api/conversations", (c) => c.json(listConversations()));
+app.get("/api/conversations", (c) => c.json(listConversations(c.req.query("assistantId") || undefined)));
 
 app.post("/api/conversations", async (c) => {
-    const input = (await c.req.json().catch(() => ({}))) as { title?: string };
+    const input = (await c.req.json().catch(() => ({}))) as { assistantId?: string; title?: string };
     return c.json(createConversation(input), 201);
 });
 

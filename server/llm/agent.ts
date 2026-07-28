@@ -9,6 +9,7 @@ import { resolveProviderModel } from "./providers.ts";
 import { sampleTools } from "./tools.ts";
 import {
     addMessage,
+    getAssistant,
     getConversation,
     getSettings,
     listProviders,
@@ -24,6 +25,7 @@ import type {
     TokenUsage,
 } from "../../shared/chat-events.ts";
 import { uid } from "../../shared/id.ts";
+import type { PromptBlock } from "../../shared/api.ts";
 
 const text = (s: string): TextContent => ({ type: "text", text: s });
 
@@ -151,6 +153,42 @@ class NetworkCapture {
     }
 }
 
+/** Build the model preamble from an assistant's prompt blocks: enabled system
+ *  blocks become the Agent's systemPrompt (joined); enabled user/assistant
+ *  blocks become example messages, split around the `history` marker so they
+ *  prepend and/or append to the real conversation history. */
+function buildPreamble(
+    prompts: PromptBlock[],
+    api: string,
+    provider: string,
+    model: string,
+): { systemPrompt: string; preMessages: AgentMessage[]; postMessages: AgentMessage[] } {
+    const histIdx = prompts.findIndex((p) => p.role === "history");
+    const pre = histIdx < 0 ? prompts : prompts.slice(0, histIdx);
+    const post = histIdx < 0 ? [] : prompts.slice(histIdx + 1);
+    const systemPrompt = prompts
+        .filter((p) => p.enabled && p.role === "system" && p.content)
+        .map((p) => p.content)
+        .join("\n\n");
+    const blockToMessage = (p: PromptBlock): Message =>
+        p.role === "user"
+            ? { role: "user", content: [text(p.content)], timestamp: Date.now() }
+            : {
+                role: "assistant",
+                content: [text(p.content)],
+                api,
+                provider,
+                model,
+                usage: zeroUsage,
+                stopReason: "stop",
+                timestamp: Date.now(),
+            };
+    const example = (ps: PromptBlock[]) =>
+        ps.filter((p) => p.enabled && (p.role === "user" || p.role === "assistant"))
+            .map(blockToMessage) as unknown as AgentMessage[];
+    return { systemPrompt, preMessages: example(pre), postMessages: example(post) };
+}
+
 export async function runChat(
     req: ChatRequest,
     emit: (e: ServerEvent) => void,
@@ -187,9 +225,21 @@ export async function runChat(
     addMessage(conv.id, userMsg);
     if (conv.title === NEW_CHAT_TITLE) updateConversationTitle(conv.id, req.text.slice(0, 48));
 
-    const systemPrompt = conv.systemPrompt ?? settings.defaultSystemPrompt;
+    // Resolve the assistant owning this conversation (or the active one) and
+    // build its prompt preamble: system blocks -> systemPrompt, user/assistant
+    // blocks -> example messages spliced around the history insertion marker.
+    const assistant = (conv.assistantId ?? settings.activeAssistantId)
+        ? getAssistant(conv.assistantId ?? settings.activeAssistantId!)
+        : null;
+    const { systemPrompt, preMessages, postMessages } = buildPreamble(
+        assistant?.prompts ?? [],
+        api,
+        provider,
+        modelIdResolved,
+    );
     // History excludes the just-persisted user message (conv was loaded before).
     const history = toPiMessages(conv.messages, api, provider, modelIdResolved);
+    const messages = [...preMessages, ...history, ...postMessages];
 
     const capture = new NetworkCapture();
     const realStreamFn = models.streamSimple.bind(models);
@@ -220,7 +270,7 @@ export async function runChat(
         initialState: {
             systemPrompt,
             model,
-            messages: history,
+            messages: messages,
             tools: sampleTools,
         },
         streamFn: loggingStreamFn,

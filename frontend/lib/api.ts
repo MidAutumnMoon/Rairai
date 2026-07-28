@@ -3,6 +3,9 @@
 // provider records only). Used by both the chat store and the settings page.
 
 import type {
+    Assistant,
+    AssistantInput,
+    AssistantSummary,
     Conversation,
     ConversationSummary,
     MessagePage,
@@ -45,12 +48,25 @@ export const getSettings = () => getJSON<Settings>("/settings");
 export const updateSettings = (patch: Partial<Settings>) => sendJSON<Settings>("PUT", "/settings", patch);
 
 // --- Conversations ---
-export const listConversations = () => getJSON<ConversationSummary[]>("/conversations");
+export const listConversations = (assistantId?: string) =>
+    getJSON<ConversationSummary[]>(
+        assistantId ? `/conversations?assistantId=${encodeURIComponent(assistantId)}` : "/conversations",
+    );
 export const getConversation = (id: string) =>
     getJSON<Conversation>(`/conversations/${encodeURIComponent(id)}`);
 export const getMessagesBefore = (id: string, beforeSeq: number, limit = 30) =>
     getJSON<MessagePage>(`/conversations/${encodeURIComponent(id)}/messages?before=${beforeSeq}&limit=${limit}`);
-export const createConversation = (input: { title?: string } = {}) =>
+export const createConversation = (input: { assistantId?: string; title?: string } = {}) =>
     sendJSON<Conversation>("POST", "/conversations", input);
 export const deleteConversation = (id: string) =>
     sendJSON<{ ok: boolean }>("DELETE", `/conversations/${encodeURIComponent(id)}`);
+
+// --- Assistants ---
+export const listAssistants = () => getJSON<AssistantSummary[]>("/assistants");
+export const getAssistant = (id: string) =>
+    getJSON<Assistant>(`/assistants/${encodeURIComponent(id)}`);
+export const createAssistant = (input: AssistantInput) => sendJSON<Assistant>("POST", "/assistants", input);
+export const updateAssistant = (id: string, input: AssistantInput) =>
+    sendJSON<Assistant>("PUT", `/assistants/${encodeURIComponent(id)}`, input);
+export const deleteAssistant = (id: string) =>
+    sendJSON<{ ok: boolean }>("DELETE", `/assistants/${encodeURIComponent(id)}`);

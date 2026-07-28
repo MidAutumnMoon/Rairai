@@ -66,7 +66,6 @@
 
     // --- General tab state ---
     let genProviders = $state<Provider[]>([]);
-    let genPrompt = $state("");
     let genStream = $state(false);
     let genProviderId = $state("");
     let genModel = $state("");
@@ -134,7 +133,6 @@
             const [s, ps] = await Promise.all([getSettings(), listProviders()]);
             settings = s;
             genProviders = ps;
-            genPrompt = s.defaultSystemPrompt;
             genStream = s.defaultStream;
             genProviderId = s.activeProviderId ?? "";
             genModel = s.activeModel ?? "";
@@ -302,14 +300,12 @@
         genSaved = false;
         try {
             const patch: Partial<Settings> = {
-                defaultSystemPrompt: genPrompt,
                 defaultStream: genStream,
                 activeProviderId: genProviderId || null,
                 activeModel: genModel || null,
             };
             const s = await updateSettings(patch);
             settings = s;
-            genPrompt = s.defaultSystemPrompt;
             genStream = s.defaultStream;
             genProviderId = s.activeProviderId ?? "";
             genModel = s.activeModel ?? "";
@@ -532,16 +528,6 @@
 
                     <Tabs.Content value="general">
                         <div class="section">
-                            <label class="field">
-                                <span class="lbl">Default system prompt</span>
-                                <textarea
-                                    class="textarea"
-                                    bind:value={genPrompt}
-                                    rows="4"
-                                    placeholder="You are a helpful assistant."
-                                ></textarea>
-                            </label>
-
                             <div class="switch-row">
                                 <Switch.Root class="switch" bind:checked={genStream}>
                                     <Switch.Thumb class="switch-thumb" />
