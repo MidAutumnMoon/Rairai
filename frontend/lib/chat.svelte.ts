@@ -90,8 +90,14 @@ class ChatStore {
     }
 
     async open(id: string): Promise<void> {
+        if (this.isStreaming) this.abort();
         this.activeId = id;
         this.activeConversation = await getConversation(id);
+        // Fresh view: drop in-flight streaming state and per-conversation logs.
+        this.isStreaming = false;
+        this.streamingMessageId = null;
+        this.streamError = null;
+        this.networkLogs = [];
     }
 
     async loadOlder(): Promise<void> {
@@ -166,8 +172,22 @@ class ChatStore {
                 this.abortCtl.signal,
             );
         } catch (e) {
-            if (!this.streamError) this.streamError = e instanceof Error ? e.message : String(e);
+            const aborted = e instanceof DOMException && e.name === "AbortError";
+            if (!aborted && !this.streamError) {
+                this.streamError = e instanceof Error ? e.message : String(e);
+            }
         } finally {
+            // Drop an assistant placeholder that never received content (e.g. aborted).
+            const conv = this.activeConversation;
+            if (conv) {
+                const i = conv.messages.findIndex((m) => m.id === streamMsg.id);
+                if (i >= 0) {
+                    const m = conv.messages[i];
+                    if (!m.text && !m.reasoning && !(m.toolCalls && m.toolCalls.length)) {
+                        conv.messages.splice(i, 1);
+                    }
+                }
+            }
             this.isStreaming = false;
             this.streamingMessageId = null;
             this.abortCtl = null;
@@ -221,6 +241,24 @@ class ChatStore {
 
     clearLogs(): void {
         this.networkLogs = [];
+    }
+
+    async clearAllConversations(): Promise<void> {
+        const ids = this.conversations.map((c) => c.id);
+        for (const id of ids) {
+            try {
+                await deleteConversation(id);
+            } catch {
+                // ignore individual failures, continue clearing the rest
+            }
+        }
+        this.activeConversation = null;
+        this.activeId = null;
+        this.networkLogs = [];
+        this.isStreaming = false;
+        this.streamingMessageId = null;
+        await this.loadConversations();
+        await this.newConversation();
     }
 }
 

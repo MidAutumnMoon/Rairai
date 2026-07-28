@@ -112,7 +112,7 @@ function resultToText(result: unknown): string {
 export async function runChat(
     req: ChatRequest,
     emit: (e: ServerEvent) => void,
-    _signal: AbortSignal,
+    signal: AbortSignal,
 ): Promise<void> {
     const conv = getConversation(req.conversationId);
     if (!conv) {
@@ -192,6 +192,12 @@ export async function runChat(
         },
         streamFn: loggingStreamFn,
     });
+
+    // Honor client disconnect / abort: stop the pi Agent so the LLM call
+    // doesn't keep running and streaming into a dead connection.
+    const onAbort = () => agent.abort();
+    if (signal.aborted) agent.abort();
+    else signal.addEventListener("abort", onAbort);
 
     const unsub = agent.subscribe((event) => {
         switch (event.type) {
@@ -282,6 +288,7 @@ export async function runChat(
     try {
         await agent.prompt(req.text);
     } finally {
+        signal.removeEventListener("abort", onAbort);
         unsub();
     }
 

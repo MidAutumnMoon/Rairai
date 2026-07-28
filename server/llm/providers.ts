@@ -20,7 +20,7 @@ import { openAIResponsesApi } from "@earendil-works/pi-ai/api/openai-responses.l
 import { anthropicMessagesApi } from "@earendil-works/pi-ai/api/anthropic-messages.lazy";
 import type { Context } from "@earendil-works/pi-ai";
 import type { ApiType } from "../../shared/api.ts";
-import { ensureBootstrapProvider, getProvider, resolveProviderKey } from "../db.ts";
+import { getProvider, resolveProviderKey } from "../db.ts";
 
 export interface ResolvedModel {
     models: MutableModels;
@@ -55,12 +55,15 @@ function lastUserText(context: Context): string {
  *  Builds a fresh provider per call (cheap, no network) so credential rotation
  *  and model-list edits always take effect. */
 export function resolveProviderModel(providerId: string, modelId: string | null): ResolvedModel {
-    ensureBootstrapProvider();
     const p = getProvider(providerId);
     if (!p) throw new Error(`Unknown provider: ${providerId}`);
     if (!p.enabled) throw new Error(`Provider "${p.name}" is disabled`);
     const resolvedModelId = modelId ?? p.models[0];
     if (!resolvedModelId) throw new Error(`Provider "${p.name}" has no models configured`);
+
+    if (p.credential.source === "env" && !p.credential.ref) {
+        throw new Error(`Provider "${p.name}" uses an env credential but has no env var name.`);
+    }
 
     // Faux is a special dev provider built via fauxProvider() (scripted echo).
     if (p.apiType === "faux") {

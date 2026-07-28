@@ -8,10 +8,10 @@
         getSettings,
         updateSettings,
         listConversations,
-        deleteConversation,
     } from "../lib/api.ts";
     import type { Provider, ProviderInput, Settings, ApiType } from "../../shared/api.ts";
     import type { ConversationSummary } from "../../shared/api.ts";
+    import { chat } from "../lib/chat.svelte";
 
     let { onClose }: { onClose?: () => void } = $props();
 
@@ -328,22 +328,15 @@
         if (!confirm(`Delete all ${convos.length} conversations? This cannot be undone.`)) return;
         dataClearing = true;
         dataResult = null;
-        let ok = 0;
-        let fail = 0;
-        const snapshot = [...convos];
-        for (const c of snapshot) {
-            try {
-                await deleteConversation(c.id);
-                ok++;
-            } catch {
-                fail++;
-            }
+        try {
+            await chat.clearAllConversations();
+            await loadData();
+            dataResult = "Deleted all conversations.";
+        } catch (e) {
+            dataResult = `Failed: ${e instanceof Error ? e.message : String(e)}`;
+        } finally {
+            dataClearing = false;
         }
-        await loadData();
-        dataResult = `Deleted ${ok} conversation${ok === 1 ? "" : "s"}${
-            fail ? `, ${fail} failed` : ""
-        }.`;
-        dataClearing = false;
     }
 </script>
 
@@ -523,7 +516,9 @@
                                 Set active
                             </button>
                             <button class="mini" onclick={() => testP(p)}>Test</button>
-                            <button class="mini" onclick={() => openEdit(p)}>Edit</button>
+                            {#if p.apiType !== "faux"}
+                                <button class="mini" onclick={() => openEdit(p)}>Edit</button>
+                            {/if}
                             <button class="mini danger" onclick={() => removeProvider(p)}>
                                 Delete
                             </button>

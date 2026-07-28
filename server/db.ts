@@ -91,7 +91,8 @@ function migrate(d: DatabaseSync): void {
             usage           TEXT,
             duration_ms     INTEGER,
             created_at      INTEGER NOT NULL,
-            FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
+            FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
+            UNIQUE(conversation_id, seq)
         );
         CREATE INDEX IF NOT EXISTS idx_messages_conv ON messages(conversation_id, seq);
     `);
@@ -421,22 +422,34 @@ function nextSeq(conversationId: string): number {
 }
 
 export function addMessage(conversationId: string, msg: ChatMessage): void {
-    run(
-        `INSERT INTO messages
-         (id, conversation_id, seq, role, text, reasoning, tool_calls, model, usage, duration_ms, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        msg.id,
-        conversationId,
-        nextSeq(conversationId),
-        msg.role,
-        msg.text,
-        msg.reasoning ?? null,
-        msg.toolCalls ? JSON.stringify(msg.toolCalls) : null,
-        msg.model ?? null,
-        msg.usage ? JSON.stringify(msg.usage) : null,
-        msg.durationMs ?? null,
-        msg.createdAt,
-    );
+    // nextSeq + INSERT must be atomic so concurrent sends to the same
+    // conversation can't pick the same seq (defense-in-depth with UNIQUE above).
+    const d = getDb();
+    d.exec("BEGIN IMMEDIATE");
+    try {
+        const seq = nextSeq(conversationId);
+        d.prepare(
+            `INSERT INTO messages
+             (id, conversation_id, seq, role, text, reasoning, tool_calls, model, usage, duration_ms, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ).run(
+            msg.id,
+            conversationId,
+            seq,
+            msg.role,
+            msg.text,
+            msg.reasoning ?? null,
+            msg.toolCalls ? JSON.stringify(msg.toolCalls) : null,
+            msg.model ?? null,
+            msg.usage ? JSON.stringify(msg.usage) : null,
+            msg.durationMs ?? null,
+            msg.createdAt,
+        );
+        d.exec("COMMIT");
+    } catch (e) {
+        d.exec("ROLLBACK");
+        throw e;
+    }
     touchConversation(conversationId);
 }
 

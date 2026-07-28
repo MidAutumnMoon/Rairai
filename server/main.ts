@@ -105,6 +105,12 @@ app.post("/api/chat", (c) => {
     return stream(c, async (s) => {
         const abortCtl = new AbortController();
         s.onAbort(() => abortCtl.abort());
+        // Backstop: if the provider stalls (client still connected but no
+        // progress for 10+ min), abort so the connection can't hang forever.
+        const signal = AbortSignal.any([
+            abortCtl.signal,
+            AbortSignal.timeout(10 * 60 * 1000),
+        ]);
 
         let req: ChatRequest;
         try {
@@ -115,7 +121,7 @@ app.post("/api/chat", (c) => {
         }
 
         try {
-            await runChat(req, (ev) => s.write(sseLine(ev)), abortCtl.signal);
+            await runChat(req, (ev) => { try { s.write(sseLine(ev)); } catch { /* client gone */ } }, signal);
         } catch (e) {
             const err: ServerEvent = {
                 type: "error",
