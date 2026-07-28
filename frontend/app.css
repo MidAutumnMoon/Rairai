@@ -96,6 +96,9 @@
         --r-lg: 14px;
         --r-full: 999px;
 
+        /* Content column - messages and composer share this width. */
+        --content-w: 50rem;
+
         /* Soft, low-contrast shadows (friendly, not heavy). */
         --shadow-sm: 0 1px 2px oklch(24% 0.02 268 / 0.06);
         --shadow: 0 2px 10px -3px oklch(24% 0.02 268 / 0.12),
@@ -809,7 +812,7 @@
      * full-width content below, and a hover-revealed action footer. No card
      * backgrounds: messages are quiet rows so the content dominates. */
     .msg {
-        max-width: 46rem;
+        max-width: var(--content-w);
         margin: 0 auto;
         padding: 0.65rem 1.5rem;
         display: flex;
@@ -1088,13 +1091,15 @@
      * button - kept intentionally minimal. */
     .composer-wrap {
         flex: none;
-        padding: 0.6rem 0.85rem 0.75rem;
+        padding: 0.6rem 0 0.75rem;
     }
     .composer {
         border: 1px solid var(--border-strong);
         border-radius: var(--r-lg);
         background: var(--surface);
-        padding: 0.35rem 0.35rem 0.35rem 0.5rem;
+        max-width: var(--content-w);
+        margin-inline: auto;
+        padding: 0.35rem 1.5rem;
         display: flex;
         flex-direction: column;
         gap: 0.3rem;
