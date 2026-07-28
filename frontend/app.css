@@ -1,0 +1,92 @@
+/* Global theme + base for the Rairai chat app. Dark, information-dense. */
+
+:root {
+    --bg: #0f1115;
+    --bg-elev: #161a21;
+    --bg-elev2: #1d222b;
+    --border: #2a313c;
+    --border-soft: #21262f;
+    --text: #e4e7eb;
+    --text-dim: #9aa4b2;
+    --text-faint: #6b7280;
+    --accent: #4f9cff;
+    --accent-dim: #2d6bb8;
+    --ok: #4ade80;
+    --warn: #fbbf24;
+    --err: #f87171;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --sans: ui-sans-serif, system-ui, -apple-system, sans-serif;
+}
+
+* {
+    box-sizing: border-box;
+}
+html,
+body,
+#root-shell {
+    height: 100%;
+    margin: 0;
+}
+body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.5;
+}
+button {
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+    background: none;
+    border: 1px solid transparent;
+}
+input,
+textarea {
+    font: inherit;
+    color: inherit;
+}
+pre {
+    margin: 0;
+    font-family: var(--mono);
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 5px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: var(--text-faint);
+}
+
+/* Shared pane header (sidebar / chat / inspector). */
+.pane-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 0.85rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-elev);
+    min-height: 44px;
+    gap: 0.5rem;
+}
+.pane-head .title {
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.pane-head button {
+    background: var(--bg-elev2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.2rem 0.55rem;
+}
+.pane-head button:hover {
+    border-color: var(--accent);
+}
