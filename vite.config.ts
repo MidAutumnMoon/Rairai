@@ -19,4 +19,10 @@ export default defineConfig(({ mode }) => ({
         minify: "oxc",
         sourcemap: mode !== "production",
     },
+
+    server: {
+        proxy: {
+            "/api": "http://localhost:36500",
+        },
+    },
 }));
