@@ -341,56 +341,152 @@
         cursor: pointer;
     }
 
-    /* ---- app shell (3-pane) ---- */
+    /* ---- app shell (sidebar + main; inspector is a slide-over drawer) ---- */
     .app {
         display: grid;
-        grid-template-columns: minmax(0, 264px) minmax(0, 1fr) minmax(0, 440px);
+        grid-template-columns: minmax(0, 280px) minmax(0, 1fr);
         grid-template-rows: minmax(0, 1fr);
         height: 100dvh;
         overflow: hidden;
-    }
-    .app.inspector-closed {
-        grid-template-columns: minmax(0, 264px) minmax(0, 1fr);
     }
     /* Height-constraint invariant: the grid row is minmax(0,1fr), NOT the
      * implicit `auto`, so it shrinks below its content instead of growing and
      * pushing panes off-screen. Every direct pane child gets min-height:0 +
      * min-width:0 + overflow:hidden, so a pane can never grow past its grid
-     * cell regardless of content - this is what makes "the input gets pushed
-     * out when the list is long" impossible to reintroduce. Inner scroll areas
-     * then only need flex:1 + min-height:0 + overflow-y:auto. */
+     * cell regardless of content. Inner scroll areas then only need flex:1 +
+     * min-height:0 + overflow-y:auto. */
     .app > * {
         min-height: 0;
         min-width: 0;
         overflow: hidden;
     }
-    .sidebar,
-    .inspector {
+    .sidebar {
         display: flex;
         flex-direction: column;
         background: var(--surface-2);
+        border-inline-end: 1px solid var(--border);
+    }
+    .main-pane {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        min-height: 0;
+        overflow: hidden;
     }
     .chat-pane {
         display: flex;
         flex-direction: column;
-        border-inline-start: 1px solid var(--border);
-    }
-    .app:not(.inspector-closed) .chat-pane {
-        border-inline-end: 1px solid var(--border);
+        min-height: 0;
+        flex: 1;
     }
 
-    /* ---- sidebar ---- */
+    /* ---- sidebar sections ---- */
     .brand {
         font-weight: 700;
         letter-spacing: -0.01em;
         color: var(--primary);
     }
-    .convos {
+    .side-section {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+    }
+    .side-section.assistants {
+        flex: 0 1 auto;
+        max-height: 50%;
+        border-bottom: 1px solid var(--border);
+    }
+    .side-section.chats {
+        flex: 1 1 0;
+    }
+    .side-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.5rem 0.6rem 0.3rem;
+    }
+    .side-label {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--text-faint);
+    }
+    .side-list {
         flex: 1;
         min-height: 0;
         overflow-y: auto;
-        padding: 0.4rem;
+        padding: 0.2rem 0.4rem 0.4rem;
     }
+
+    /* assistant rows (vertical, primary) */
+    .assistant-row {
+        display: flex;
+        align-items: stretch;
+        border-radius: var(--r);
+        margin-bottom: 0.15rem;
+    }
+    .assistant-row:hover {
+        background: var(--surface-3);
+    }
+    .assistant-row.active {
+        background: var(--primary-soft);
+    }
+    .assistant-select {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex: 1;
+        min-width: 0;
+        padding: 0.45rem 0.5rem;
+        text-align: start;
+        color: var(--text);
+    }
+    .assistant-row.active .assistant-select {
+        color: var(--primary);
+        font-weight: 600;
+    }
+    .assistant-select .emoji {
+        font-size: 18px;
+        line-height: 1;
+        flex-shrink: 0;
+    }
+    .assistant-info {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        gap: 0.05rem;
+    }
+    .assistant-info .name {
+        font-size: 13px;
+        font-weight: 600;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .assistant-info .desc {
+        font-size: 11px;
+        color: var(--text-faint);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .assistant-edit {
+        align-self: center;
+        margin-inline-end: 0.25rem;
+        opacity: 0;
+        color: var(--text-faint);
+        transition: opacity var(--transition);
+    }
+    .assistant-row:hover .assistant-edit {
+        opacity: 1;
+    }
+    .assistant-edit:hover {
+        color: var(--primary);
+    }
+
+    /* conversation rows */
     .convo {
         display: flex;
         align-items: center;
@@ -427,64 +523,91 @@
         text-overflow: ellipsis;
         white-space: nowrap;
     }
-    /* ---- assistants (sidebar chips) ---- */
-    .assistants {
-        display: flex;
-        gap: 0.3rem;
-        padding: 0.45rem 0.5rem;
-        overflow-x: auto;
-        border-bottom: 1px solid var(--border);
+
+    /* sidebar footer (settings entry) */
+    .side-footer {
+        flex: none;
+        border-top: 1px solid var(--border);
+        padding: 0.4rem;
     }
-    .assistant {
-        display: inline-flex;
+    .side-foot-btn {
+        display: flex;
         align-items: center;
-        gap: 0.35rem;
-        padding: 0.3rem 0.6rem;
-        border-radius: var(--r-full);
-        font-size: 12px;
+        gap: 0.5rem;
+        width: 100%;
+        padding: 0.5rem 0.6rem;
+        border-radius: var(--r);
         color: var(--text-muted);
-        white-space: nowrap;
-        border: 1px solid transparent;
+        font-size: 13px;
         transition: background var(--transition), color var(--transition);
     }
-    .assistant:hover {
+    .side-foot-btn:hover {
         background: var(--surface-3);
         color: var(--text);
     }
-    .assistant.active {
-        background: var(--primary-soft);
-        color: var(--primary);
-        border-color: color-mix(in oklch, var(--primary), white 70%);
-        font-weight: 600;
+
+    /* ---- full-page views (settings / assistant editor) ---- */
+    .view {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        min-height: 0;
     }
-    .assistant .emoji {
-        font-size: 14px;
-        line-height: 1;
-    }
-    .assistant .a-edit {
-        display: inline-flex;
-        opacity: 0;
-        color: var(--text-faint);
-        transition: opacity var(--transition);
-    }
-    .assistant:hover .a-edit {
-        opacity: 1;
-    }
-    .assistant .a-edit:hover {
-        color: var(--primary);
-    }
-    .convos-head {
+    .view-head {
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        padding: 0.45rem 0.6rem 0.25rem;
+        gap: 0.5rem;
+        padding: 0.6rem 0.9rem;
+        border-bottom: 1px solid var(--border);
+        background: var(--surface);
     }
-    .convos-head .label {
-        font-size: 11px;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        color: var(--text-faint);
+    .view-title {
+        font-weight: 700;
+        font-size: 15px;
+    }
+    .view-body {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        padding: 1.5rem 1rem 3rem;
+    }
+    .view-inner {
+        max-width: 720px;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+    }
+    .view-actions {
+        flex: none;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.8rem 1rem;
+        border-top: 1px solid var(--border);
+        background: var(--surface);
+    }
+
+    /* ---- network inspector drawer (slide-over, default closed) ---- */
+    .inspector-drawer {
+        position: absolute;
+        inset: 0 0 0 auto;
+        width: min(440px, 50vw);
+        z-index: 40;
+        transform: translateX(100%);
+        transition: transform 200ms ease;
+        box-shadow: var(--shadow-lg);
+        border-inline-start: 1px solid var(--border);
+    }
+    .inspector-drawer.open {
+        transform: translateX(0);
+    }
+    .inspector {
+        display: flex;
+        flex-direction: column;
+        background: var(--surface);
+        height: 100%;
+        min-height: 0;
     }
 
     /* ---- assistant editor (prompt-block list) ---- */

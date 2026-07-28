@@ -1,70 +1,82 @@
 <script lang="ts">
     import { chat } from "../lib/chat.svelte";
     import Icon from "./ui/Icon.svelte";
-    import Tooltip from "./ui/Tooltip.svelte";
-    import AssistantEditor from "./AssistantEditor.svelte";
 
-    let editorOpen = $state(false);
-    let editingId = $state<string | null>(null);
-
-    function newAssistant() {
-        editingId = null;
-        editorOpen = true;
-    }
-    function editActiveAssistant() {
-        if (!chat.activeAssistantId) return;
-        editingId = chat.activeAssistantId;
-        editorOpen = true;
-    }
+    let {
+        onOpenSettings,
+        onEditAssistant,
+        onNavigateToChat,
+    }: {
+        onOpenSettings: () => void;
+        onEditAssistant: (id: string | null) => void;
+        onNavigateToChat: () => void;
+    } = $props();
 </script>
 
 <aside class="sidebar">
     <header class="pane-head">
         <span class="brand">Rairai</span>
-        <Tooltip label="New assistant" class="btn btn-icon btn-sm" onclick={newAssistant}>
-            <Icon name="plus" size={16} />
-        </Tooltip>
     </header>
 
-    <div class="assistants">
-        {#each chat.assistants as a (a.id)}
-            <button
-                class="assistant"
-                class:active={a.id === chat.activeAssistantId}
-                onclick={() => chat.selectAssistant(a.id)}
-                title={a.description || a.name}
-            >
-                <span class="emoji">{a.emoji}</span>
-                <span class="a-name">{a.name}</span>
+    <section class="side-section assistants">
+        <div class="side-head">
+            <span class="side-label">Assistants</span>
+            <button class="btn btn-ghost btn-sm" onclick={() => onEditAssistant(null)}>
+                <Icon name="plus" size={14} /> New
             </button>
-        {/each}
-    </div>
-
-    <div class="convos-head">
-        <span class="label">Chats</span>
-        <div class="head-actions">
-            <Tooltip
-                label="Edit assistant"
-                class="btn btn-icon btn-sm"
-                onclick={editActiveAssistant}
-                disabled={!chat.activeAssistantId}
-            >
-                <Icon name="settings" size={14} />
-            </Tooltip>
-            <Tooltip label="New chat" class="btn btn-icon btn-sm" onclick={() => chat.newConversation()}>
-                <Icon name="plus" size={14} />
-            </Tooltip>
         </div>
-    </div>
+        <div class="side-list">
+            {#each chat.assistants as a (a.id)}
+                <div class="assistant-row" class:active={a.id === chat.activeAssistantId}>
+                    <button
+                        class="assistant-select"
+                        onclick={() => { chat.selectAssistant(a.id); onNavigateToChat(); }}
+                        title={a.description || a.name}
+                    >
+                        <span class="emoji">{a.emoji}</span>
+                        <span class="assistant-info">
+                            <span class="name">{a.name}</span>
+                            {#if a.description}<span class="desc">{a.description}</span>{/if}
+                        </span>
+                    </button>
+                    <button
+                        class="btn btn-icon btn-sm assistant-edit"
+                        onclick={() => onEditAssistant(a.id)}
+                        title="Edit assistant"
+                        aria-label="Edit assistant"
+                    >
+                        <Icon name="pencil" size={14} />
+                    </button>
+                </div>
+            {/each}
+        </div>
+    </section>
 
-    <div class="convos">
-        {#each chat.conversations as conv (conv.id)}
-            <button class="convo" class:active={conv.id === chat.activeId} onclick={() => chat.open(conv.id)}>
-                <span class="dot"></span>
-                <span class="t">{conv.title}</span>
+    <section class="side-section chats">
+        <div class="side-head">
+            <span class="side-label">Chats</span>
+            <button class="btn btn-ghost btn-sm" onclick={() => { chat.newConversation(); onNavigateToChat(); }}>
+                <Icon name="plus" size={14} /> New
             </button>
-        {/each}
-    </div>
-</aside>
+        </div>
+        <div class="side-list">
+            {#each chat.conversations as conv (conv.id)}
+                <button
+                    class="convo"
+                    class:active={conv.id === chat.activeId}
+                    onclick={() => { chat.open(conv.id); onNavigateToChat(); }}
+                >
+                    <span class="dot"></span>
+                    <span class="t">{conv.title}</span>
+                </button>
+            {/each}
+        </div>
+    </section>
 
-<AssistantEditor bind:open={editorOpen} assistantId={editingId} />
+    <footer class="side-footer">
+        <button class="side-foot-btn" onclick={onOpenSettings}>
+            <Icon name="settings" size={16} />
+            <span>Settings</span>
+        </button>
+    </footer>
+</aside>

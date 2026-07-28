@@ -24,6 +24,8 @@
         "lightbulb": '<path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2 .7 3 .4.8 1 1.5 1.3 2 .3.5.5 1 .5 1.5"/><path d="M9 18h6"/><path d="M10 22h4"/>',
         "plug": '<path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v5a5 5 0 0 1-10 0V8Z"/>',
         "chevron-up": '<path d="m18 15-6-6-6 6"/>',
+        "pencil": '<path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
+        "arrow-left": '<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>',
     };
 </script>
 

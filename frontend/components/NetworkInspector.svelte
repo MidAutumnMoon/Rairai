@@ -2,7 +2,9 @@
     import { chat } from "../lib/chat.svelte";
     import NetworkLogDetail from "./NetworkLogDetail.svelte";
     import type { NetworkLog } from "../../shared/chat-events.ts";
+    import Icon from "./ui/Icon.svelte";
 
+    let { onClose }: { onClose: () => void } = $props();
     let selectedId = $state<string | null>(null);
     const selected = $derived(chat.networkLogs.find((l) => l.id === selectedId) ?? null);
 
@@ -15,7 +17,12 @@
 <aside class="inspector">
     <header class="pane-head">
         <span class="title">Network <span class="count">({chat.networkLogs.length})</span></span>
-        <button class="btn btn-ghost btn-sm" onclick={() => chat.clearLogs()}>Clear</button>
+        <div class="head-actions">
+            <button class="btn btn-ghost btn-sm" onclick={() => chat.clearLogs()}>Clear</button>
+            <button class="btn btn-icon btn-sm" onclick={onClose} aria-label="Close inspector">
+                <Icon name="x" size={16} />
+            </button>
+        </div>
     </header>
     <div class="master">
         {#each chat.networkLogs as log (log.id)}

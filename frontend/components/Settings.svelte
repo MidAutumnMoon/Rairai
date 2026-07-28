@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { Dialog, Tabs, Switch, ToggleGroup } from "bits-ui";
+    import { Tabs, Switch, ToggleGroup } from "bits-ui";
     import {
         listProviders,
         createProvider,
@@ -17,7 +17,7 @@
     import Icon from "./ui/Icon.svelte";
     import Select from "./ui/Select.svelte";
 
-    let { open = $bindable(false) }: { open?: boolean } = $props();
+    let { onBack }: { onBack: () => void } = $props();
 
     let tab = $state<"providers" | "general" | "data">("providers");
 
@@ -153,12 +153,10 @@
     }
 
     // --- effects ---
-    // Refresh Providers-tab data whenever the dialog opens.
+    // Load Providers-tab data once on mount (the view mounts when shown).
     $effect(() => {
-        if (open) {
-            void loadProviders();
-            void loadSettings();
-        }
+        void loadProviders();
+        void loadSettings();
     });
     // Refresh General-tab data whenever it becomes active.
     $effect(() => {
@@ -338,19 +336,17 @@
     }
 </script>
 
-<Dialog.Root bind:open>
-    <Dialog.Portal>
-        <Dialog.Overlay class="dialog-overlay" />
-        <Dialog.Content class="dialog-content">
-            <div class="dialog-header">
-                <span class="dialog-title">Settings</span>
-                <Dialog.Close class="btn btn-icon btn-sm" aria-label="Close">
-                    <Icon name="x" size={16} />
-                </Dialog.Close>
-            </div>
+<section class="view">
+    <header class="view-head">
+        <button class="btn btn-ghost btn-sm" onclick={onBack}>
+            <Icon name="arrow-left" size={16} /> Back
+        </button>
+        <span class="view-title">Settings</span>
+    </header>
 
-            <div class="dialog-body">
-                <Tabs.Root bind:value={tab} class="settings-shell">
+    <div class="view-body">
+        <div class="view-inner">
+            <Tabs.Root bind:value={tab} class="settings-shell">
                     <Tabs.List class="tabs-list">
                         <Tabs.Trigger class="tab-trigger" value="providers">Providers</Tabs.Trigger>
                         <Tabs.Trigger class="tab-trigger" value="general">General</Tabs.Trigger>
@@ -591,6 +587,5 @@
                     </Tabs.Content>
                 </Tabs.Root>
             </div>
-        </Dialog.Content>
-    </Dialog.Portal>
-</Dialog.Root>
+        </div>
+    </section>

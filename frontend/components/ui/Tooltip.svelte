@@ -23,7 +23,7 @@
 </script>
 
 <Tooltip.Root>
-    <Tooltip.Trigger class={klass} {onclick} {disabled}>
+    <Tooltip.Trigger class={klass} {onclick} {disabled} aria-label={label}>
         {@render children()}
     </Tooltip.Trigger>
     <Tooltip.Portal>

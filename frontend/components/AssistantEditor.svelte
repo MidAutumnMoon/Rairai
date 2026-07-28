@@ -4,7 +4,6 @@
     // Always "advanced" (IdoFront-style); system blocks -> systemPrompt, user/
     // assistant blocks -> example messages around the history marker (see
     // buildPreamble in server/llm/agent.ts).
-    import { Dialog } from "bits-ui";
     import type { AssistantInput, PromptBlock, PromptRole } from "../../shared/api.ts";
     import { chat } from "../lib/chat.svelte";
     import { getAssistant } from "../lib/api.ts";
@@ -13,9 +12,9 @@
     import Icon from "./ui/Icon.svelte";
 
     let {
-        open = $bindable(false),
         assistantId = null,
-    }: { open?: boolean; assistantId?: string | null } = $props();
+        onBack,
+    }: { assistantId?: string | null; onBack: () => void } = $props();
 
     let name = $state("");
     let emoji = $state("✨");
@@ -31,9 +30,8 @@
         { value: "assistant", label: "ASSISTANT" },
     ];
 
-    // Load the assistant (or seed a blank one) whenever the dialog opens.
+    // Load the assistant (or seed a blank one) on mount / when the target changes.
     $effect(() => {
-        if (!open) return;
         const id = assistantId;
         error = null;
         if (id) {
@@ -92,7 +90,7 @@
         try {
             if (assistantId) await chat.saveAssistant(assistantId, input);
             else await chat.createAssistant(input);
-            open = false;
+            onBack();
         } catch (e) {
             error = messageOf(e);
         } finally {
@@ -103,23 +101,20 @@
         if (!assistantId) return;
         if (!confirm(`Delete assistant "${name}"? Its chats are kept but unassigned.`)) return;
         await chat.deleteAssistant(assistantId);
-        open = false;
+        onBack();
     }
 </script>
 
-<Dialog.Root bind:open>
-    <Dialog.Portal>
-        <Dialog.Overlay class="dialog-overlay" />
-        <Dialog.Content class="dialog-content">
-            <div class="dialog-header">
-                <span class="dialog-title">{isEdit ? "Edit assistant" : "New assistant"}</span>
-                <Dialog.Close class="btn btn-icon btn-sm" aria-label="Close">
-                    <Icon name="x" size={16} />
-                </Dialog.Close>
-            </div>
+<section class="view">
+    <header class="view-head">
+        <button class="btn btn-ghost btn-sm" onclick={onBack}>
+            <Icon name="arrow-left" size={16} /> Back
+        </button>
+        <span class="view-title">{isEdit ? "Edit assistant" : "New assistant"}</span>
+    </header>
 
-            <div class="dialog-body">
-                <div class="settings-shell">
+    <div class="view-body">
+        <div class="view-inner">
                     <div class="grid">
                         <label class="field">
                             <span class="lbl">Name</span>
@@ -230,16 +225,14 @@
                 </div>
             </div>
 
-            <div class="dialog-actions">
-                {#if isEdit}
-                    <button class="btn btn-danger" onclick={remove}>Delete</button>
-                {/if}
-                <span class="grow"></span>
-                <button class="btn" onclick={() => (open = false)}>Cancel</button>
-                <button class="btn btn-primary" onclick={save} disabled={saving}>
-                    {saving ? "Saving…" : "Save"}
-                </button>
-            </div>
-        </Dialog.Content>
-    </Dialog.Portal>
-</Dialog.Root>
+        <footer class="view-actions">
+            {#if isEdit}
+                <button class="btn btn-danger" onclick={remove}>Delete</button>
+            {/if}
+            <span class="grow"></span>
+            <button class="btn" onclick={onBack}>Cancel</button>
+            <button class="btn btn-primary" onclick={save} disabled={saving}>
+                {saving ? "Saving…" : "Save"}
+            </button>
+        </footer>
+    </section>
