@@ -105,11 +105,11 @@
                     <ChatInput />
                 </div>
 
-                <div class="inspector-drawer" class:open={inspectorOpen}>
+                <div class="drawer inspector-drawer" class:open={inspectorOpen}>
                     <NetworkInspector onClose={() => (inspectorOpen = false)} />
                 </div>
 
-                <div class="manage-drawer" class:open={manageOpen}>
+                <div class="drawer manage-drawer" class:open={manageOpen}>
                     <header class="drawer-head">
                         <span class="drawer-title">Assistants</span>
                         <button class="btn btn-icon btn-sm" onclick={() => (manageOpen = false)} aria-label="Close">
