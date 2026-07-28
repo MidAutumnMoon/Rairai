@@ -1,0 +1,16 @@
+// dummy config for svelte lsp
+{
+    "compilerOptions": {
+        "target": "esnext",
+        "module": "esnext",
+        "moduleResolution": "bundler",
+        "allowImportingTsExtensions": true,
+        "noEmit": true,
+        "lib": ["esnext", "dom", "dom.iterable"],
+        "types": ["svelte", "vite/client"],
+    },
+    "include": ["frontend/**/*.ts", "frontend/**/*.svelte", "shared/**/*.ts"],
+    "exclude": [
+        "server/**/*.ts", // Hides backend Deno code from Svelte LSP
+    ],
+}
