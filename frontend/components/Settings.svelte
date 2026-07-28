@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { Tabs, Switch, ToggleGroup } from "bits-ui";
+    import { Switch, ToggleGroup } from "bits-ui";
     import {
         listProviders,
         createProvider,
@@ -17,9 +17,7 @@
     import Icon from "./ui/Icon.svelte";
     import Select from "./ui/Select.svelte";
 
-    let { onBack }: { onBack: () => void } = $props();
-
-    let tab = $state<"providers" | "general" | "data">("providers");
+    let { tab }: { tab: string } = $props();
 
     // --- shared (Providers tab) state ---
     let providers = $state<Provider[]>([]);
@@ -336,23 +334,8 @@
     }
 </script>
 
-<section class="view">
-    <header class="view-head">
-        <button class="btn btn-ghost btn-sm" onclick={onBack}>
-            <Icon name="arrow-left" size={16} /> Back
-        </button>
-        <span class="view-title">Settings</span>
-    </header>
-
-    <div class="settings-layout">
-        <Tabs.Root bind:value={tab} orientation="vertical" class="settings-tabs">
-            <Tabs.List class="settings-nav">
-                <Tabs.Trigger class="settings-nav-item" value="providers">Providers</Tabs.Trigger>
-                <Tabs.Trigger class="settings-nav-item" value="general">General</Tabs.Trigger>
-                <Tabs.Trigger class="settings-nav-item" value="data">Data</Tabs.Trigger>
-            </Tabs.List>
-            <div class="settings-content">
-                    <Tabs.Content value="providers">
+<div class="settings-content">
+    {#if tab === "providers"}
                         <div class="toolbar">
                             <span class="count">
                                 {providers.length} provider{providers.length === 1 ? "" : "s"}
@@ -519,9 +502,7 @@
                         {#if provError}
                             <div class="err-msg">{provError}</div>
                         {/if}
-                    </Tabs.Content>
-
-                    <Tabs.Content value="general">
+                    {:else if tab === "general"}
                         <div class="section">
                             <div class="switch-row">
                                 <Switch.Root class="switch" bind:checked={genStream}>
@@ -551,9 +532,7 @@
                                 {#if genSaved}<span class="ok-msg">✓ saved</span>{/if}
                             </div>
                         </div>
-                    </Tabs.Content>
-
-                    <Tabs.Content value="data">
+                    {:else if tab === "data"}
                         <div class="section">
                             <div class="stat">
                                 {#if dataLoading}
@@ -583,8 +562,5 @@
                                 keys are stored in the server's data dir.
                             </p>
                         </div>
-                    </Tabs.Content>
+                    {/if}
             </div>
-        </Tabs.Root>
-    </div>
-    </section>

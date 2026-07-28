@@ -594,6 +594,7 @@
     /* sidebar footer (settings entry) */
     .side-footer {
         flex: none;
+        background: var(--surface);
         border-top: 1px solid var(--border);
         padding: 0.4rem;
     }
@@ -1289,28 +1290,30 @@
         font-size: 11px;
     }
 
-    /* ---- settings (vertical nav + content panel; scales with config growth) ---- */
-    .settings-layout {
-        flex: 1;
-        min-height: 0;
+    /* ---- settings sidebar (replaces chat sidebar; one sidebar at a time) ---- */
+    .sidebar-back {
+        flex: none;
         display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.6rem 0.85rem;
+        border-bottom: 1px solid var(--border);
+        color: var(--text-muted);
+        font-size: 13px;
+        font-weight: 500;
     }
-    .settings-tabs {
-        display: flex;
-        flex: 1;
-        min-height: 0;
-        width: 100%;
+    .sidebar-back:hover {
+        background: var(--surface-2);
+        color: var(--text);
     }
     .settings-nav {
+        flex: 1;
         display: flex;
         flex-direction: column;
-        flex-shrink: 0;
-        width: 180px;
+        min-height: 0;
+        overflow-y: auto;
         padding: 0.5rem;
         gap: 0.15rem;
-        border-inline-end: 1px solid var(--border);
-        background: var(--surface-2);
-        overflow-y: auto;
     }
     .settings-nav-item {
         display: flex;
@@ -1328,7 +1331,7 @@
         background: var(--surface-3);
         color: var(--text);
     }
-    .settings-nav-item[data-state="active"] {
+    .settings-nav-item.active {
         background: var(--primary-soft);
         color: var(--primary);
         font-weight: 600;
@@ -1336,6 +1339,7 @@
     .settings-content {
         flex: 1;
         min-width: 0;
+        min-height: 0;
         overflow-y: auto;
         padding: 1.5rem;
     }
