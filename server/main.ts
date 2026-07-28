@@ -9,7 +9,8 @@ import {
     deleteConversation,
     deleteProvider,
     ensureBootstrapProvider,
-    getConversation,
+    getConversationPage,
+    getMessagesBefore,
     getProvider,
     getSettings,
     listConversations,
@@ -78,8 +79,15 @@ app.post("/api/conversations", async (c) => {
 });
 
 app.get("/api/conversations/:id", (c) => {
-    const conv = getConversation(c.req.param("id"));
+    const conv = getConversationPage(c.req.param("id"));
     return conv ? c.json(conv) : c.json({ error: "not found" }, 404);
+});
+
+app.get("/api/conversations/:id/messages", (c) => {
+    const before = Number(c.req.query("before"));
+    const limit = Number(c.req.query("limit")) || 30;
+    if (!Number.isFinite(before)) return c.json({ error: "missing or invalid 'before'" }, 400);
+    return c.json(getMessagesBefore(c.req.param("id"), before, limit));
 });
 
 app.delete("/api/conversations/:id", (c) =>

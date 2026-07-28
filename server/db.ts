@@ -10,6 +10,7 @@ import type {
     ApiType,
     Conversation,
     ConversationSummary,
+    MessagePage,
     Provider,
     ProviderInput,
     Settings,
@@ -317,7 +318,63 @@ export function getConversation(id: string): Conversation | null {
         id,
     );
     const summary = rowToSummary(r, msgs.length);
-    return { ...summary, systemPrompt: r.system_prompt, messages: msgs.map(rowToMessage) };
+    return {
+        ...summary,
+        systemPrompt: r.system_prompt,
+        messages: msgs.map(rowToMessage),
+        hasMore: false,
+        oldestSeq: null,
+    };
+}
+
+const PAGE_SIZE = 30;
+
+/** Conversation meta + the recent message tail (NOT all messages). Used by the
+ *  REST endpoint so opening a long conversation doesn't transfer everything. */
+export function getConversationPage(id: string, limit = PAGE_SIZE): Conversation | null {
+    const r = queryOne<ConvRow>("SELECT * FROM conversations WHERE id = ?", id);
+    if (!r) return null;
+    const total = queryOne<{ n: number }>(
+        "SELECT COUNT(*) AS n FROM messages WHERE conversation_id = ?",
+        id,
+    )!.n;
+    // Tail: newest N, then reverse to ascending for display.
+    const tail = query<MsgRow>(
+        "SELECT * FROM messages WHERE conversation_id = ? ORDER BY seq DESC LIMIT ?",
+        id,
+        limit,
+    );
+    const messages = tail.slice().reverse().map(rowToMessage);
+    const oldestSeq = tail.length ? tail[tail.length - 1].seq : null;
+    return {
+        ...rowToSummary(r, total),
+        systemPrompt: r.system_prompt,
+        messages,
+        hasMore: total > tail.length,
+        oldestSeq,
+    };
+}
+
+/** One page of messages older than `beforeSeq` (cursor pagination on scroll-up). */
+export function getMessagesBefore(
+    id: string,
+    beforeSeq: number,
+    limit = PAGE_SIZE,
+): MessagePage {
+    const total = queryOne<{ n: number }>(
+        "SELECT COUNT(*) AS n FROM messages WHERE conversation_id = ? AND seq < ?",
+        id,
+        beforeSeq,
+    )!.n;
+    const rows = query<MsgRow>(
+        "SELECT * FROM messages WHERE conversation_id = ? AND seq < ? ORDER BY seq DESC LIMIT ?",
+        id,
+        beforeSeq,
+        limit,
+    );
+    const messages = rows.slice().reverse().map(rowToMessage);
+    const oldestSeq = rows.length ? rows[rows.length - 1].seq : null;
+    return { messages, hasMore: total > rows.length, oldestSeq };
 }
 
 export function createConversation(input: {

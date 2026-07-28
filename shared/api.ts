@@ -58,7 +58,20 @@ export interface ConversationSummary {
 export interface Conversation extends ConversationSummary {
     /** null = use Settings.defaultSystemPrompt. */
     systemPrompt: string | null;
+    /** The loaded range only (the recent tail on open, grown via loadOlder).
+     *  Older messages are fetched on demand - never the whole conversation. */
     messages: ChatMessage[];
+    /** Older messages exist on the server beyond the loaded range. */
+    hasMore: boolean;
+    /** seq of the oldest loaded message (cursor for loading older). */
+    oldestSeq: number | null;
+}
+
+/** A page of older messages from GET /api/conversations/:id/messages?before=. */
+export interface MessagePage {
+    messages: ChatMessage[];
+    hasMore: boolean;
+    oldestSeq: number | null;
 }
 
 export interface ProviderTestResult {

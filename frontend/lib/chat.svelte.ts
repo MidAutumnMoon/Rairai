@@ -16,6 +16,7 @@ import {
     createConversation,
     deleteConversation,
     getConversation,
+    getMessagesBefore,
     listConversations,
 } from "./api.ts";
 
@@ -91,6 +92,16 @@ class ChatStore {
     async open(id: string): Promise<void> {
         this.activeId = id;
         this.activeConversation = await getConversation(id);
+    }
+
+    async loadOlder(): Promise<void> {
+        const conv = this.activeConversation;
+        if (!conv || !conv.hasMore || conv.oldestSeq == null) return;
+        const page = await getMessagesBefore(conv.id, conv.oldestSeq);
+        // Older messages go in front; preserve ascending order.
+        conv.messages = [...page.messages, ...conv.messages];
+        conv.hasMore = page.hasMore;
+        conv.oldestSeq = page.oldestSeq;
     }
 
     async newConversation(): Promise<void> {

@@ -5,6 +5,7 @@
 import type {
     Conversation,
     ConversationSummary,
+    MessagePage,
     Provider,
     ProviderInput,
     ProviderTestResult,
@@ -47,6 +48,8 @@ export const updateSettings = (patch: Partial<Settings>) => sendJSON<Settings>("
 export const listConversations = () => getJSON<ConversationSummary[]>("/conversations");
 export const getConversation = (id: string) =>
     getJSON<Conversation>(`/conversations/${encodeURIComponent(id)}`);
+export const getMessagesBefore = (id: string, beforeSeq: number, limit = 30) =>
+    getJSON<MessagePage>(`/conversations/${encodeURIComponent(id)}/messages?before=${beforeSeq}&limit=${limit}`);
 export const createConversation = (input: { title?: string } = {}) =>
     sendJSON<Conversation>("POST", "/conversations", input);
 export const deleteConversation = (id: string) =>
