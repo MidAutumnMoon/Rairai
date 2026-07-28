@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { Dialog, Tabs, Switch, ToggleGroup } from "bits-ui";
     import {
         listProviders,
         createProvider,
@@ -13,8 +14,10 @@
     import type { ConversationSummary } from "../../shared/api.ts";
     import { chat } from "../lib/chat.svelte";
     import { messageOf } from "../../shared/error.ts";
+    import Icon from "./ui/Icon.svelte";
+    import Select from "./ui/Select.svelte";
 
-    let { onClose }: { onClose?: () => void } = $props();
+    let { open = $bindable(false) }: { open?: boolean } = $props();
 
     let tab = $state<"providers" | "general" | "data">("providers");
 
@@ -55,6 +58,12 @@
     let formSaving = $state(false);
     let formError = $state<string | null>(null);
 
+    const apiTypeOptions = [
+        { value: "openai-completions", label: "openai-completions" },
+        { value: "openai-responses", label: "openai-responses" },
+        { value: "anthropic-messages", label: "anthropic-messages" },
+    ];
+
     // --- General tab state ---
     let genProviders = $state<Provider[]>([]);
     let genPrompt = $state("");
@@ -67,6 +76,14 @@
     const genModels = $derived(
         genProviders.find((p) => p.id === genProviderId)?.models ?? [],
     );
+    const providerOptions = $derived([
+        { value: "", label: "- none -" },
+        ...genProviders.map((p) => ({ value: p.id, label: p.name })),
+    ]);
+    const modelOptions = $derived([
+        { value: "", label: "- none -" },
+        ...genModels.map((m) => ({ value: m, label: m })),
+    ]);
 
     // --- Data tab state ---
     let convos = $state<ConversationSummary[]>([]);
@@ -76,7 +93,6 @@
     let dataResult = $state<string | null>(null);
 
     // --- helpers ---
-
     function credLabel(p: Provider): string {
         if (p.credential.source === "env") {
             return p.credential.ref ? `env: ${p.credential.ref}` : "env: (no var)";
@@ -85,7 +101,6 @@
         // use the Test action to verify. Never display the secret itself.
         return "inline";
     }
-
     type TestView = { state: "testing" } | { state: "ok" } | { state: "err"; error: string } | null;
     function testView(p: Provider): TestView {
         const t = tests[p.id];
@@ -106,7 +121,6 @@
             loadingProviders = false;
         }
     }
-
     async function loadSettings() {
         try {
             settings = await getSettings();
@@ -114,7 +128,6 @@
             provError = messageOf(e);
         }
     }
-
     async function loadGeneral() {
         genError = null;
         try {
@@ -129,7 +142,6 @@
             genError = messageOf(e);
         }
     }
-
     async function loadData() {
         dataLoading = true;
         dataError = null;
@@ -143,22 +155,21 @@
     }
 
     // --- effects ---
-    // Load the Providers-tab data once on mount.
+    // Refresh Providers-tab data whenever the dialog opens.
     $effect(() => {
-        void loadProviders();
-        void loadSettings();
+        if (open) {
+            void loadProviders();
+            void loadSettings();
+        }
     });
-
     // Refresh General-tab data whenever it becomes active.
     $effect(() => {
         if (tab === "general") void loadGeneral();
     });
-
     // Refresh Data-tab data whenever it becomes active.
     $effect(() => {
         if (tab === "data") void loadData();
     });
-
     // Keep the active-model select valid for the chosen provider.
     $effect(() => {
         const pid = genProviderId;
@@ -174,7 +185,6 @@
         formError = null;
         formOpen = true;
     }
-
     function openEdit(p: Provider) {
         editingId = p.id;
         form = {
@@ -190,13 +200,11 @@
         formError = null;
         formOpen = true;
     }
-
     function closeForm() {
         formOpen = false;
         editingId = null;
         formError = null;
     }
-
     async function saveProvider() {
         formError = null;
         const name = form.name.trim();
@@ -243,7 +251,6 @@
             formSaving = false;
         }
     }
-
     async function toggleEnabled(p: Provider) {
         try {
             await updateProvider(p.id, {
@@ -259,7 +266,6 @@
             provError = messageOf(e);
         }
     }
-
     async function setActive(p: Provider) {
         try {
             settings = await updateSettings({
@@ -270,7 +276,6 @@
             provError = messageOf(e);
         }
     }
-
     async function testP(p: Provider) {
         tests[p.id] = "testing";
         try {
@@ -279,7 +284,6 @@
             tests[p.id] = { ok: false, error: messageOf(e) };
         }
     }
-
     async function removeProvider(p: Provider) {
         if (!confirm(`Delete provider "${p.name}"?`)) return;
         try {
@@ -338,590 +342,269 @@
     }
 </script>
 
-<section class="settings">
-    <header class="pane-head">
-        <div class="head-left">
-            {#if onClose}
-                <button onclick={onClose}>← Back</button>
-            {/if}
-            <span class="title">Settings</span>
-        </div>
-    </header>
-
-    <nav class="tabs">
-        <button class="tab" class:active={tab === "providers"} onclick={() => (tab = "providers")}>
-            Providers
-        </button>
-        <button class="tab" class:active={tab === "general"} onclick={() => (tab = "general")}>
-            General
-        </button>
-        <button class="tab" class:active={tab === "data"} onclick={() => (tab = "data")}>
-            Data
-        </button>
-    </nav>
-
-    <div class="body">
-        {#if tab === "providers"}
-            <div class="toolbar">
-                <span class="count">
-                    {providers.length} provider{providers.length === 1 ? "" : "s"}
-                </span>
-                <span class="spacer"></span>
-                <button class="primary" onclick={openNew}>+ New provider</button>
+<Dialog.Root bind:open>
+    <Dialog.Portal>
+        <Dialog.Overlay class="dialog-overlay" />
+        <Dialog.Content class="dialog-content">
+            <div class="dialog-header">
+                <span class="dialog-title">Settings</span>
+                <Dialog.Close class="btn btn-icon btn-sm" aria-label="Close">
+                    <Icon name="x" size={16} />
+                </Dialog.Close>
             </div>
 
-            {#if formOpen}
-                <div class="form-card">
-                    <div class="form-head">
-                        <span>{editingId ? "Edit provider" : "New provider"}</span>
-                        <button class="mini" onclick={closeForm} title="Close">✕</button>
-                    </div>
+            <div class="dialog-body">
+                <Tabs.Root bind:value={tab} class="settings-shell">
+                    <Tabs.List class="tabs-list">
+                        <Tabs.Trigger class="tab-trigger" value="providers">Providers</Tabs.Trigger>
+                        <Tabs.Trigger class="tab-trigger" value="general">General</Tabs.Trigger>
+                        <Tabs.Trigger class="tab-trigger" value="data">Data</Tabs.Trigger>
+                    </Tabs.List>
 
-                    <div class="grid">
-                        <label class="field">
-                            <span class="lbl">Name</span>
-                            <input bind:value={form.name} placeholder="My OpenAI" />
-                        </label>
-                        <label class="field">
-                            <span class="lbl">API type</span>
-                            <select bind:value={form.apiType}>
-                                <option value="openai-completions">openai-completions</option>
-                                <option value="openai-responses">openai-responses</option>
-                                <option value="anthropic-messages">anthropic-messages</option>
-                            </select>
-                        </label>
-                        <label class="field wide">
-                            <span class="lbl">
-                                Base URL <span class="hint">must include /v1 for openai-*</span>
+                    <Tabs.Content value="providers">
+                        <div class="toolbar">
+                            <span class="count">
+                                {providers.length} provider{providers.length === 1 ? "" : "s"}
                             </span>
-                            <input bind:value={form.baseUrl} placeholder="https://api.openai.com/v1" />
-                        </label>
-                        <label class="field wide">
-                            <span class="lbl">Models <span class="hint">comma-separated</span></span>
-                            <input bind:value={form.modelsText} placeholder="gpt-4o-mini, gpt-4o" />
-                        </label>
-                        <div class="field wide">
-                            <span class="lbl">Credential source</span>
-                            <div class="seg">
-                                <button
-                                    class:sel={form.credSource === "env"}
-                                    onclick={() => (form.credSource = "env")}
-                                >
-                                    env var
-                                </button>
-                                <button
-                                    class:sel={form.credSource === "inline"}
-                                    onclick={() => (form.credSource = "inline")}
-                                >
-                                    inline key
-                                </button>
-                            </div>
-                            {#if form.credSource === "env"}
-                                <label class="sub">
-                                    <span class="lbl">Env var name</span>
-                                    <input
-                                        bind:value={form.credRef}
-                                        placeholder="OPENAI_API_KEY"
-                                    />
-                                    <span class="hint">read from the server environment (not a secret)</span>
-                                </label>
-                            {:else}
-                                <label class="sub">
-                                    <span class="lbl">
-                                        API key
-                                        {#if editingId}<span class="hint">(leave blank to keep existing)</span>{/if}
-                                    </span>
-                                    <input
-                                        type="password"
-                                        bind:value={form.key}
-                                        placeholder={editingId ? "••••••••" : "sk-..."}
-                                        autocomplete="off"
-                                    />
-                                    <span class="hint">stored on the server (0600); never returned</span>
-                                </label>
-                            {/if}
-                        </div>
-                        <label class="field check">
-                            <input type="checkbox" bind:checked={form.enabled} />
-                            <span>enabled</span>
-                        </label>
-                    </div>
-
-                    {#if formError}
-                        <div class="err-msg">{formError}</div>
-                    {/if}
-
-                    <div class="form-actions">
-                        <button class="primary" onclick={saveProvider} disabled={formSaving}>
-                            {formSaving ? "Saving…" : "Save"}
-                        </button>
-                        <button onclick={closeForm} disabled={formSaving}>Cancel</button>
-                    </div>
-                </div>
-            {/if}
-
-            {#if loadingProviders && providers.length === 0}
-                <div class="empty">Loading…</div>
-            {:else if providers.length === 0}
-                <div class="empty">No providers configured. Click “+ New provider” to add one.</div>
-            {:else}
-                {#each providers as p (p.id)}
-                    {@const tv = testView(p)}
-                    <div class="prov" class:active={settings?.activeProviderId === p.id}>
-                        <div class="prov-top">
-                            <span class="pname">{p.name}</span>
-                            <span class="badge">{p.apiType}</span>
-                            {#if settings?.activeProviderId === p.id}
-                                <span class="tag">active</span>
-                            {/if}
-                            {#if !p.enabled}
-                                <span class="tag dim">disabled</span>
-                            {/if}
                             <span class="grow"></span>
-                            <button class="mini" onclick={() => toggleEnabled(p)}>
-                                {p.enabled ? "disable" : "enable"}
+                            <button class="btn btn-sm btn-primary" onclick={openNew}>
+                                <Icon name="plus" size={14} /> New provider
                             </button>
                         </div>
-                        <div class="prov-meta">
-                            <span class="kv">
-                                <b>models:</b>
-                                <span class="models">
-                                    {p.models.length ? p.models.join(", ") : "—"}
-                                </span>
-                            </span>
-                            <span class="kv"><b>cred:</b> {credLabel(p)}</span>
-                            <span class="kv"><b>base:</b> {p.baseUrl || "—"}</span>
-                        </div>
-                        {#if tv}
-                            <div
-                                class="test-result {tv.state}"
-                            >
-                                {#if tv.state === "testing"}
-                                    testing…
-                                {:else if tv.state === "ok"}
-                                    ✓ ok
-                                {:else}
-                                    ✗ {tv.error}
+
+                        {#if formOpen}
+                            <div class="form-card">
+                                <div class="form-head">
+                                    <span>{editingId ? "Edit provider" : "New provider"}</span>
+                                    <button
+                                        class="btn btn-icon btn-sm"
+                                        onclick={closeForm}
+                                        aria-label="Close form"
+                                    >
+                                        <Icon name="x" size={14} />
+                                    </button>
+                                </div>
+
+                                <div class="grid">
+                                    <label class="field">
+                                        <span class="lbl">Name</span>
+                                        <input class="input" bind:value={form.name} placeholder="My OpenAI" />
+                                    </label>
+                                    <div class="field">
+                                        <span class="lbl">API type</span>
+                                        <Select bind:value={form.apiType} items={apiTypeOptions} />
+                                    </div>
+                                    <label class="field wide">
+                                        <span class="lbl">
+                                            Base URL <span class="hint">must include /v1 for openai-*</span>
+                                        </span>
+                                        <input
+                                            class="input"
+                                            bind:value={form.baseUrl}
+                                            placeholder="https://api.openai.com/v1"
+                                        />
+                                    </label>
+                                    <label class="field wide">
+                                        <span class="lbl">Models <span class="hint">comma-separated</span></span>
+                                        <input
+                                            class="input"
+                                            bind:value={form.modelsText}
+                                            placeholder="gpt-4o-mini, gpt-4o"
+                                        />
+                                    </label>
+                                    <div class="field wide">
+                                        <span class="lbl">Credential source</span>
+                                        <ToggleGroup.Root type="single" bind:value={form.credSource} class="seg">
+                                            <ToggleGroup.Item class="seg-item" value="env">env var</ToggleGroup.Item>
+                                            <ToggleGroup.Item class="seg-item" value="inline">inline key</ToggleGroup.Item>
+                                        </ToggleGroup.Root>
+                                        {#if form.credSource === "env"}
+                                            <label class="sub">
+                                                <span class="lbl">Env var name</span>
+                                                <input
+                                                    class="input"
+                                                    bind:value={form.credRef}
+                                                    placeholder="OPENAI_API_KEY"
+                                                />
+                                                <span class="hint">read from the server environment (not a secret)</span>
+                                            </label>
+                                        {:else}
+                                            <label class="sub">
+                                                <span class="lbl">
+                                                    API key
+                                                    {#if editingId}<span class="hint">(leave blank to keep existing)</span>{/if}
+                                                </span>
+                                                <input
+                                                    class="input"
+                                                    type="password"
+                                                    bind:value={form.key}
+                                                    placeholder={editingId ? "••••••••" : "sk-..."}
+                                                    autocomplete="off"
+                                                />
+                                                <span class="hint">stored on the server (0600); never returned</span>
+                                            </label>
+                                        {/if}
+                                    </div>
+                                    <label class="field check">
+                                        <input type="checkbox" bind:checked={form.enabled} />
+                                        <span>enabled</span>
+                                    </label>
+                                </div>
+
+                                {#if formError}
+                                    <div class="err-msg">{formError}</div>
                                 {/if}
+
+                                <div class="form-actions">
+                                    <button class="btn btn-primary" onclick={saveProvider} disabled={formSaving}>
+                                        {formSaving ? "Saving…" : "Save"}
+                                    </button>
+                                    <button class="btn" onclick={closeForm} disabled={formSaving}>Cancel</button>
+                                </div>
                             </div>
                         {/if}
-                        <div class="prov-actions">
-                            <button
-                                class="mini"
-                                onclick={() => setActive(p)}
-                                disabled={settings?.activeProviderId === p.id}
-                            >
-                                Set active
-                            </button>
-                            <button class="mini" onclick={() => testP(p)}>Test</button>
-                            {#if p.apiType !== "faux"}
-                                <button class="mini" onclick={() => openEdit(p)}>Edit</button>
+
+                        {#if loadingProviders && providers.length === 0}
+                            <div class="empty">Loading…</div>
+                        {:else if providers.length === 0}
+                            <div class="empty">No providers configured. Click “+ New provider” to add one.</div>
+                        {:else}
+                            {#each providers as p (p.id)}
+                                {@const tv = testView(p)}
+                                <div class="prov" class:active={settings?.activeProviderId === p.id}>
+                                    <div class="prov-top">
+                                        <span class="pname">{p.name}</span>
+                                        <span class="badge">{p.apiType}</span>
+                                        {#if settings?.activeProviderId === p.id}
+                                            <span class="tag">active</span>
+                                        {/if}
+                                        {#if !p.enabled}<span class="tag dim">disabled</span>{/if}
+                                        <span class="grow"></span>
+                                        <button class="btn btn-sm" onclick={() => toggleEnabled(p)}>
+                                            {p.enabled ? "disable" : "enable"}
+                                        </button>
+                                    </div>
+                                    <div class="prov-meta">
+                                        <span class="kv">
+                                            <b>models:</b>
+                                            <span class="models">
+                                                {p.models.length ? p.models.join(", ") : "-"}
+                                            </span>
+                                        </span>
+                                        <span class="kv"><b>cred:</b> {credLabel(p)}</span>
+                                        <span class="kv"><b>base:</b> {p.baseUrl || "-"}</span>
+                                    </div>
+                                    {#if tv}
+                                        <div class="test-result {tv.state}">
+                                            {#if tv.state === "testing"}
+                                                testing…
+                                            {:else if tv.state === "ok"}
+                                                ✓ ok
+                                            {:else}
+                                                ✗ {tv.error}
+                                            {/if}
+                                        </div>
+                                    {/if}
+                                    <div class="prov-actions">
+                                        <button
+                                            class="btn btn-sm"
+                                            onclick={() => setActive(p)}
+                                            disabled={settings?.activeProviderId === p.id}
+                                        >
+                                            Set active
+                                        </button>
+                                        <button class="btn btn-sm" onclick={() => testP(p)}>Test</button>
+                                        {#if p.apiType !== "faux"}
+                                            <button class="btn btn-sm" onclick={() => openEdit(p)}>Edit</button>
+                                        {/if}
+                                        <button class="btn btn-sm btn-danger" onclick={() => removeProvider(p)}>
+                                            Delete
+                                        </button>
+                                    </div>
+                                </div>
+                            {/each}
+                        {/if}
+
+                        {#if provError}
+                            <div class="err-msg">{provError}</div>
+                        {/if}
+                    </Tabs.Content>
+
+                    <Tabs.Content value="general">
+                        <div class="section">
+                            <label class="field">
+                                <span class="lbl">Default system prompt</span>
+                                <textarea
+                                    class="textarea"
+                                    bind:value={genPrompt}
+                                    rows="4"
+                                    placeholder="You are a helpful assistant."
+                                ></textarea>
+                            </label>
+
+                            <div class="switch-row">
+                                <Switch.Root class="switch" bind:checked={genStream}>
+                                    <Switch.Thumb class="switch-thumb" />
+                                </Switch.Root>
+                                <span>Stream responses by default</span>
+                            </div>
+
+                            <div class="field">
+                                <span class="lbl">Active provider</span>
+                                <Select bind:value={genProviderId} items={providerOptions} />
+                            </div>
+
+                            <div class="field">
+                                <span class="lbl">Active model</span>
+                                <Select bind:value={genModel} items={modelOptions} />
+                            </div>
+
+                            {#if genError}
+                                <div class="err-msg">{genError}</div>
                             {/if}
-                            <button class="mini danger" onclick={() => removeProvider(p)}>
-                                Delete
-                            </button>
+
+                            <div class="form-actions">
+                                <button class="btn btn-primary" onclick={saveGeneral} disabled={genSaving}>
+                                    {genSaving ? "Saving…" : "Save"}
+                                </button>
+                                {#if genSaved}<span class="ok-msg">✓ saved</span>{/if}
+                            </div>
                         </div>
-                    </div>
-                {/each}
-            {/if}
+                    </Tabs.Content>
 
-            {#if provError}
-                <div class="err-msg">{provError}</div>
-            {/if}
-        {:else if tab === "general"}
-            <div class="section">
-                <label class="field">
-                    <span class="lbl">Default system prompt</span>
-                    <textarea
-                        bind:value={genPrompt}
-                        rows="4"
-                        placeholder="You are a helpful assistant."
-                    ></textarea>
-                </label>
+                    <Tabs.Content value="data">
+                        <div class="section">
+                            <div class="stat">
+                                {#if dataLoading}
+                                    <span class="dim">loading…</span>
+                                {:else}
+                                    <span><b>{convos.length}</b> conversations</span>
+                                {/if}
+                            </div>
 
-                <label class="check">
-                    <input type="checkbox" bind:checked={genStream} />
-                    <span>Stream responses by default</span>
-                </label>
+                            <button
+                                class="btn btn-danger"
+                                onclick={clearAll}
+                                disabled={dataClearing || !convos.length}
+                            >
+                                {dataClearing ? "Deleting…" : "Clear all conversations"}
+                            </button>
 
-                <label class="field">
-                    <span class="lbl">Active provider</span>
-                    <select bind:value={genProviderId}>
-                        <option value="">— none —</option>
-                        {#each genProviders as p (p.id)}
-                            <option value={p.id}>{p.name}</option>
-                        {/each}
-                    </select>
-                </label>
+                            {#if dataError}
+                                <div class="err-msg">{dataError}</div>
+                            {/if}
+                            {#if dataResult}
+                                <div class="ok-msg">{dataResult}</div>
+                            {/if}
 
-                <label class="field">
-                    <span class="lbl">Active model</span>
-                    <select bind:value={genModel}>
-                        <option value="">— none —</option>
-                        {#each genModels as m}
-                            <option value={m}>{m}</option>
-                        {/each}
-                    </select>
-                </label>
-
-                {#if genError}
-                    <div class="err-msg">{genError}</div>
-                {/if}
-
-                <div class="form-actions">
-                    <button class="primary" onclick={saveGeneral} disabled={genSaving}>
-                        {genSaving ? "Saving…" : "Save"}
-                    </button>
-                    {#if genSaved}<span class="ok-msg">✓ saved</span>{/if}
-                </div>
+                            <p class="note">
+                                Provider keys configured as env are read from the server environment; inline
+                                keys are stored in the server's data dir.
+                            </p>
+                        </div>
+                    </Tabs.Content>
+                </Tabs.Root>
             </div>
-        {:else}
-            <div class="section">
-                <div class="stat">
-                    {#if dataLoading}
-                        <span class="dim">loading…</span>
-                    {:else}
-                        <span><b>{convos.length}</b> conversations</span>
-                    {/if}
-                </div>
-
-                <button class="danger" onclick={clearAll} disabled={dataClearing || !convos.length}>
-                    {dataClearing ? "Deleting…" : "Clear all conversations"}
-                </button>
-
-                {#if dataError}
-                    <div class="err-msg">{dataError}</div>
-                {/if}
-                {#if dataResult}
-                    <div class="ok-msg">{dataResult}</div>
-                {/if}
-
-                <p class="note">
-                    Provider keys configured as env are read from the server environment; inline
-                    keys are stored in the server's data dir.
-                </p>
-            </div>
-        {/if}
-    </div>
-</section>
-
-<style>
-    .settings {
-        display: flex;
-        flex-direction: column;
-        height: 100%;
-        min-height: 0;
-        background: var(--bg);
-        color-scheme: dark;
-    }
-    .head-left {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-
-    .tabs {
-        display: flex;
-        border-bottom: 1px solid var(--border);
-        background: var(--bg-elev);
-        flex-shrink: 0;
-    }
-    .tab {
-        padding: 0.5rem 0.95rem;
-        font-size: 13px;
-        color: var(--text-dim);
-        border-bottom: 2px solid transparent;
-        border-radius: 0;
-    }
-    .tab:hover {
-        color: var(--text);
-    }
-    .tab.active {
-        color: var(--text);
-        border-bottom-color: var(--accent);
-    }
-
-    .body {
-        flex: 1;
-        min-height: 0;
-        overflow-y: auto;
-        padding: 0.9rem;
-    }
-
-    /* buttons */
-    .mini,
-    .primary,
-    .danger {
-        background: var(--bg-elev2);
-        border: 1px solid var(--border);
-        border-radius: 4px;
-        padding: 0.25rem 0.6rem;
-        font-size: 12px;
-        color: var(--text-dim);
-    }
-    .mini:hover,
-    .primary:hover,
-    .danger:hover {
-        border-color: var(--accent);
-        color: var(--text);
-    }
-    .primary {
-        background: var(--accent-dim);
-        border-color: var(--accent);
-        color: var(--text);
-    }
-    .primary:hover {
-        background: var(--accent);
-    }
-    .danger {
-        color: var(--err);
-    }
-    .danger:hover {
-        border-color: var(--err);
-        color: var(--err);
-    }
-    .mini:disabled,
-    .primary:disabled,
-    .danger:disabled {
-        opacity: 0.5;
-        cursor: default;
-    }
-
-    .toolbar {
-        display: flex;
-        align-items: center;
-        gap: 0.6rem;
-        margin-bottom: 0.7rem;
-    }
-    .toolbar .count {
-        color: var(--text-faint);
-        font-size: 12px;
-    }
-    .toolbar .spacer {
-        flex: 1;
-    }
-
-    /* provider cards */
-    .prov {
-        border: 1px solid var(--border);
-        border-radius: 6px;
-        background: var(--bg-elev);
-        padding: 0.55rem 0.7rem;
-        margin-bottom: 0.5rem;
-    }
-    .prov.active {
-        border-color: var(--accent);
-    }
-    .prov-top {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        flex-wrap: wrap;
-    }
-    .pname {
-        font-weight: 600;
-    }
-    .badge {
-        font-family: var(--mono);
-        font-size: 11px;
-        padding: 0.05rem 0.35rem;
-        border-radius: 3px;
-        background: var(--bg-elev2);
-        color: var(--text-dim);
-        border: 1px solid var(--border);
-    }
-    .tag {
-        font-size: 10px;
-        padding: 0.05rem 0.3rem;
-        border-radius: 3px;
-        background: var(--accent-dim);
-        color: var(--text);
-    }
-    .tag.dim {
-        background: var(--bg-elev2);
-        color: var(--text-faint);
-    }
-    .grow {
-        flex: 1;
-    }
-    .prov-meta {
-        display: flex;
-        gap: 1rem;
-        flex-wrap: wrap;
-        margin: 0.35rem 0;
-        font-size: 12px;
-        color: var(--text-dim);
-    }
-    .kv b {
-        color: var(--text-faint);
-        font-weight: 500;
-    }
-    .models {
-        font-family: var(--mono);
-    }
-    .prov-actions {
-        display: flex;
-        gap: 0.4rem;
-        flex-wrap: wrap;
-    }
-    .test-result {
-        font-size: 12px;
-        padding: 0.25rem 0.4rem;
-        margin-top: 0.35rem;
-        border-radius: 4px;
-        background: var(--bg-elev2);
-    }
-    .test-result.testing {
-        color: var(--warn);
-    }
-    .test-result.ok {
-        color: var(--ok);
-    }
-    .test-result.err {
-        color: var(--err);
-    }
-
-    /* form */
-    .form-card {
-        border: 1px solid var(--accent);
-        border-radius: 6px;
-        background: var(--bg-elev);
-        padding: 0.7rem 0.85rem;
-        margin-bottom: 0.8rem;
-    }
-    .form-head {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        font-weight: 600;
-        margin-bottom: 0.6rem;
-    }
-    .grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 0.6rem 0.9rem;
-    }
-    .field {
-        display: flex;
-        flex-direction: column;
-        gap: 0.2rem;
-        margin-bottom: 0.6rem;
-    }
-    .field.wide {
-        grid-column: 1 / -1;
-    }
-    .field.check,
-    .check {
-        flex-direction: row;
-        align-items: center;
-        gap: 0.4rem;
-    }
-    .lbl {
-        font-size: 12px;
-        color: var(--text-dim);
-    }
-    .hint {
-        color: var(--text-faint);
-        font-size: 11px;
-        font-weight: 400;
-    }
-    input,
-    textarea,
-    select {
-        background: var(--bg);
-        border: 1px solid var(--border);
-        border-radius: 4px;
-        padding: 0.3rem 0.45rem;
-        font-size: 13px;
-        color: var(--text);
-        width: 100%;
-    }
-    textarea {
-        resize: vertical;
-        font-family: var(--sans);
-    }
-    input:focus,
-    textarea:focus,
-    select:focus {
-        outline: none;
-        border-color: var(--accent);
-    }
-    .sub {
-        display: flex;
-        flex-direction: column;
-        gap: 0.2rem;
-        margin-top: 0.45rem;
-    }
-    .seg {
-        display: inline-flex;
-        border: 1px solid var(--border);
-        border-radius: 4px;
-        overflow: hidden;
-        width: max-content;
-    }
-    .seg button {
-        background: var(--bg);
-        padding: 0.3rem 0.7rem;
-        font-size: 12px;
-        color: var(--text-dim);
-        border: none;
-        border-right: 1px solid var(--border);
-    }
-    .seg button:last-child {
-        border-right: none;
-    }
-    .seg button.sel {
-        background: var(--accent-dim);
-        color: var(--text);
-    }
-    .form-actions {
-        display: flex;
-        align-items: center;
-        gap: 0.6rem;
-        margin-top: 0.6rem;
-    }
-    .err-msg {
-        color: var(--err);
-        font-size: 12px;
-        margin-top: 0.4rem;
-    }
-    .ok-msg {
-        color: var(--ok);
-        font-size: 12px;
-    }
-    .empty {
-        color: var(--text-faint);
-        font-size: 13px;
-        padding: 1rem 0;
-    }
-    .dim {
-        color: var(--text-faint);
-    }
-
-    /* general / data sections */
-    .section {
-        border: 1px solid var(--border);
-        border-radius: 6px;
-        background: var(--bg-elev);
-        padding: 0.75rem 0.9rem;
-    }
-    .stat {
-        font-size: 14px;
-        margin-bottom: 0.7rem;
-    }
-    .stat b {
-        font-size: 18px;
-    }
-    .note {
-        color: var(--text-faint);
-        font-size: 12px;
-        margin-top: 0.9rem;
-        line-height: 1.5;
-    }
-
-    @media (max-width: 560px) {
-        .grid {
-            grid-template-columns: 1fr;
-        }
-    }
-</style>
+        </Dialog.Content>
+    </Dialog.Portal>
+</Dialog.Root>

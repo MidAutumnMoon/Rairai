@@ -48,10 +48,10 @@
             <h4>Response · {log.response.status} {log.response.statusText}</h4>
             <pre class="json">{fmt(log.response.body)}</pre>
         </section>
-        {#if log.response.streamChunks && log.response.streamChunks.length}
+        {#if log.response.streamChunks?.length}
             <section>
                 <h4>Stream · {log.response.streamChunks.length} chunks</h4>
-                <pre class="chunks">{log.response.streamChunks.map((c) => c.data).join("")}</pre>
+                <pre class="json chunks">{log.response.streamChunks.map((c) => c.data).join("")}</pre>
             </section>
         {/if}
     {/if}
@@ -62,46 +62,3 @@
         </section>
     {/if}
 </div>
-
-<style>
-    .detail {
-        flex: 1;
-        overflow-y: auto;
-        padding: 0.6rem;
-        display: flex;
-        flex-direction: column;
-        gap: 0.7rem;
-    }
-    h4 {
-        margin: 0 0 0.3rem;
-        font-size: 11px;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        color: var(--text-faint);
-    }
-    .json {
-        background: var(--bg);
-        border: 1px solid var(--border-soft);
-        border-radius: 5px;
-        padding: 0.5rem 0.6rem;
-        font-size: 11.5px;
-        color: var(--text-dim);
-        max-height: 300px;
-        overflow: auto;
-    }
-    .chunks {
-        background: var(--bg);
-        border: 1px solid var(--border-soft);
-        border-radius: 5px;
-        padding: 0.5rem 0.6rem;
-        font-size: 11.5px;
-        color: var(--text-dim);
-        max-height: 150px;
-        overflow: auto;
-        white-space: pre-wrap;
-        word-break: break-word;
-    }
-    .err {
-        color: var(--err);
-    }
-</style>

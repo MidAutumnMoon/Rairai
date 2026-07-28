@@ -18,6 +18,7 @@
         "@hono/hono/streaming": "jsr:@hono/hono@^4.12.32/streaming",
         "@std/assert": "jsr:@std/assert@1",
         "@sveltejs/vite-plugin-svelte": "npm:@sveltejs/vite-plugin-svelte@^7.2.0",
+        "bits-ui": "npm:bits-ui@^2",
         "concurrently": "npm:concurrently@^10.0.4",
         "dompurify": "npm:dompurify@^3.2.4",
         "marked": "npm:marked@^12.0.2",

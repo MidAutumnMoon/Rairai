@@ -5,7 +5,7 @@
 
     let container: HTMLDivElement | undefined = $state();
     let stickToBottom = true;
-    let loadingOlder = false;
+    let loadingOlder = $state(false);
     let lastConvId: string | null = null;
 
     // Auto-scroll to the bottom as content streams in, but only when the user is
@@ -59,33 +59,3 @@
         <div class="error-banner">⚠ {chat.streamError}</div>
     {/if}
 </div>
-
-<style>
-    .stream {
-        flex: 1;
-        min-height: 0;
-        overflow-y: auto;
-        padding: 1rem 0;
-    }
-    .load-more {
-        text-align: center;
-        color: var(--text-faint);
-        font-size: 12px;
-        padding: 0.4rem;
-    }
-    .empty {
-        color: var(--text-faint);
-        text-align: center;
-        margin-top: 3rem;
-        padding: 0 1.5rem;
-    }
-    .error-banner {
-        margin: 0.5rem 1rem;
-        padding: 0.5rem 0.75rem;
-        background: rgba(248, 113, 113, 0.1);
-        border: 1px solid var(--err);
-        border-radius: 6px;
-        color: var(--err);
-        font-size: 13px;
-    }
-</style>
