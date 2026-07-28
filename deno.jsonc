@@ -14,7 +14,7 @@
     "compilerOptions": {
         "checkJs": true,
         "module": "esnext",
-        "lib": ["deno.window", "deno.unstable", "node", "dom"],
+        "lib": ["deno.window", "deno.unstable", "node", "dom", "esnext"],
         "types": ["svelte", "vite/client"]
     },
     "fmt": {
@@ -22,6 +22,9 @@
         "useTabs": false,
         "jsx.multiLineParens": "never",
         "singleBodyPosition": "sameLine"
+    },
+    "lint": {
+        "rules": {}
     },
     "unstable": ["fmt-component"]
 }
