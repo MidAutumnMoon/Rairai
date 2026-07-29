@@ -3,15 +3,15 @@
 // For a full list of overridable settings, and general information on folder-specific settings,
 // see the documentation: https://zed.dev/docs/configuring-zed#settings-files
 {
+    // Not working :/
+    "prettier": {
+        "plugins": ["prettier-plugin-svelte"],
+    },
+    "lsp": {},
     "languages": {
         // prettier has bugs when formatting Svelte :/
         "Svelte": {
-            "formatter": {
-                "external": {
-                    "command": "deno",
-                    "arguments": ["fmt", "--ext", "svelte", "-"],
-                },
-            },
+            "format_on_save": "off"
         },
     },
 }
