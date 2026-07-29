@@ -21,7 +21,7 @@ Within frontend, components are stateless renders; the reactive store + SSE clie
 - The frontend never imports from `server/` or `pi-*` packages. The backend translates pi's internal events into the minimal protocol defined in shared.
 - `shared/` is the single source of truth for wire types. Both sides import from it.
 - Deno tasks are in `deno.jsonc`. Use `deno task dev` to run both sides; `deno task dev:web` / `deno task dev:server` for one side only.
-- Formatting: 4-space indent, no tabs (deno fmt).
+- 4-space indent, no tabs.
 
 ## Fitting New Code
 
