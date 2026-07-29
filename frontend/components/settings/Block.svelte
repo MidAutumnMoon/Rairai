@@ -98,3 +98,90 @@ const placeholder = $derived(
         <textarea class="pblock-content" bind:value={block.content} {placeholder}></textarea>
     {/if}
 </div>
+
+<style>
+    .pblock {
+        border: 1px solid var(--border);
+        border-radius: var(--r-md);
+        overflow: hidden;
+        background: var(--surface);
+    }
+    .pblock.disabled {
+        opacity: 0.6;
+        border-style: dashed;
+    }
+    .pblock-head {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.4rem 0.55rem;
+        background: var(--surface-2);
+        border-bottom: 1px solid var(--border);
+    }
+    .pblock-marker {
+        flex: 1;
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--warn);
+    }
+    .pblock-toggle {
+        display: inline-flex;
+        color: var(--text-faint);
+    }
+    .pblock-toggle[data-state="on"] {
+        color: var(--ok);
+    }
+    .pblock-role {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text-muted);
+        background: transparent;
+        border: 0;
+        border-bottom: 1px dashed var(--border-strong);
+        border-radius: 0;
+        padding: 0 0.2rem 0 0;
+        cursor: pointer;
+        outline: none;
+    }
+    .pblock-name {
+        flex: 1;
+        min-width: 0;
+        border: 0;
+        background: transparent;
+        font-size: 12px;
+        color: var(--text-muted);
+        outline: none;
+        border-bottom: 1px dashed transparent;
+    }
+    .pblock-name:focus {
+        border-bottom-color: var(--primary);
+    }
+    .pblock-actions {
+        display: flex;
+        gap: 0.1rem;
+    }
+    .pblock-actions .btn-icon {
+        width: 26px;
+        height: 26px;
+        color: var(--text-faint);
+    }
+    .pblock-actions .btn-icon:hover {
+        color: var(--text);
+    }
+    .pblock-actions .btn-icon.danger:hover {
+        color: var(--danger);
+    }
+    .pblock-content {
+        width: 100%;
+        border: 0;
+        background: transparent;
+        resize: vertical;
+        outline: none;
+        padding: 0.55rem 0.65rem;
+        font-family: var(--mono);
+        font-size: 12.5px;
+        line-height: 1.5;
+        min-height: 70px;
+        color: var(--text);
+    }
+</style>

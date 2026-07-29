@@ -258,3 +258,16 @@ async function remove() {
         </div>
     </div>
 </div>
+
+<style>
+    .pblocks {
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+    }
+    .pblock-add {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+    }
+</style>

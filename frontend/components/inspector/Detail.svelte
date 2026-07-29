@@ -63,4 +63,39 @@ function fmt(value: unknown): string {
     {/if}
 </div>
 
-<style></style>
+<style>
+    .detail {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        padding: 0.8rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.9rem;
+    }
+    .detail h4 {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--text-faint);
+        margin-bottom: 0.35rem;
+    }
+    .json {
+        background: var(--surface-2);
+        border: 1px solid var(--border);
+        border-radius: var(--r);
+        padding: 0.6rem 0.75rem;
+        font-family: var(--mono);
+        font-size: 11.5px;
+        overflow-x: auto;
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+    .json.err {
+        color: var(--danger);
+    }
+    .chunks {
+        font-size: 11px;
+    }
+</style>

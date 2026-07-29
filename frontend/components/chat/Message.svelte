@@ -77,3 +77,77 @@ async function copy() {
         </footer>
     {/if}
 </article>
+
+<style>
+    .msg {
+        max-width: var(--content-w);
+        margin: 0 auto;
+        padding: 0.65rem 1.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    .msg-head {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .msg-avatar {
+        width: 26px;
+        height: 26px;
+        border-radius: var(--r-full);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+    .msg-avatar.assistant {
+        background: var(--primary-soft);
+        color: var(--primary);
+    }
+    .msg-avatar.user {
+        background: var(--surface-3);
+        color: var(--text-muted);
+    }
+    .msg-name {
+        font-weight: 600;
+        font-size: 13px;
+    }
+    .msg-model {
+        font-size: 11px;
+        color: var(--text-faint);
+        font-family: var(--mono);
+    }
+    .msg-body {
+        font-size: 14.5px;
+        line-height: 1.65;
+    }
+    .msg-body .raw {
+        white-space: pre-wrap;
+        word-break: break-word;
+        font-family: var(--mono);
+        font-size: 13px;
+        color: var(--text-muted);
+    }
+    .msg-footer {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        font-size: 11px;
+        color: var(--text-faint);
+        opacity: 0;
+        transition: opacity var(--transition);
+    }
+    .msg:hover .msg-footer {
+        opacity: 1;
+    }
+    .tools {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    .tokens .arrow {
+        opacity: 0.6;
+        margin-inline: 0.15rem;
+    }
+</style>

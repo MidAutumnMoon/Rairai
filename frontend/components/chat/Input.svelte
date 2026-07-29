@@ -89,3 +89,117 @@ function onkeydown(e: KeyboardEvent) {
         </div>
     </div>
 </div>
+
+<style>
+    .composer-wrap {
+        flex: none;
+        padding: 0.6rem 0 0.75rem;
+    }
+    .composer {
+        border: 1px solid var(--border-strong);
+        border-radius: var(--r-lg);
+        background: var(--surface);
+        max-width: var(--content-w);
+        margin-inline: auto;
+        padding: 0.5rem 1.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        box-shadow: var(--shadow-sm);
+        transition:
+            border-color var(--transition),
+            box-shadow var(--transition);
+    }
+    .composer:focus-within {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px var(--primary-softer);
+    }
+    .composer-input {
+        width: 100%;
+        border: 0;
+        background: transparent;
+        resize: none;
+        outline: none;
+        padding: 0.5rem 0.3rem;
+        max-height: 200px;
+        font-size: 14px;
+        line-height: 1.5;
+        color: var(--text);
+    }
+    .composer-input::placeholder {
+        color: var(--text-faint);
+    }
+    .composer-input:disabled {
+        opacity: 0.6;
+    }
+    .composer-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+    }
+    .composer-tools {
+        display: flex;
+        align-items: center;
+        gap: 0.15rem;
+        min-width: 0;
+    }
+    .composer-tool {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        height: 28px;
+        padding: 0 0.55rem;
+        border-radius: var(--r);
+        font-size: 12px;
+        color: var(--text-muted);
+        background: transparent;
+        transition:
+            background var(--transition),
+            color var(--transition);
+        white-space: nowrap;
+    }
+    .composer-tool:hover {
+        background: var(--surface-2);
+        color: var(--text);
+    }
+    .composer-tool[data-state="on"] {
+        background: var(--primary-soft);
+        color: var(--primary);
+    }
+    .composer-send {
+        display: flex;
+        align-items: center;
+        flex-shrink: 0;
+    }
+    .composer-send-btn {
+        width: 32px;
+        height: 32px;
+        border-radius: var(--r-full);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--primary);
+        color: var(--primary-foreground);
+        transition:
+            background var(--transition),
+            opacity var(--transition),
+            transform var(--transition);
+    }
+    .composer-send-btn:hover {
+        background: var(--primary-hover);
+    }
+    .composer-send-btn:active {
+        transform: scale(0.94);
+    }
+    .composer-send-btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+    .composer-send-btn.stop {
+        background: var(--danger);
+    }
+    .composer-send-btn.stop:hover {
+        background: var(--danger-hover);
+    }
+</style>

@@ -78,3 +78,59 @@ function groupedModels(models: Model[]): { group: string; models: Model[] }[] {
         {/each}
     {/if}
 </section>
+
+<style>
+    .field-group-head {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .empty-sm {
+        font-size: 12px;
+        color: var(--text-faint);
+        padding: 0.4rem 0;
+    }
+    .model-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.15rem;
+    }
+    .model-group-head {
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--text-faint);
+        padding: 0.2rem 0;
+    }
+    .model-list {
+        display: flex;
+        flex-direction: column;
+    }
+    .model-row {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.25rem 0.4rem;
+        border-radius: var(--r-sm);
+    }
+    .model-row:hover {
+        background: var(--surface-2);
+    }
+    .model-name {
+        font-size: 13px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .model-id {
+        font-size: 11px;
+        font-family: var(--mono);
+        color: var(--text-faint);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        flex: 1;
+        min-width: 0;
+    }
+</style>

@@ -28,3 +28,16 @@ const html = $derived(streaming ? "" : renderMarkdown(text));
         {/if}
     </Collapsible.Content>
 </Collapsible.Root>
+
+<style>
+    .reasoning {
+        border: 1px solid var(--border);
+        border-radius: var(--r);
+        background: var(--warn-soft);
+        border-color: color-mix(in oklch, var(--warn), white 60%);
+        overflow: hidden;
+    }
+    .reasoning .collapse-trigger {
+        color: oklch(48% 0.1 70);
+    }
+</style>

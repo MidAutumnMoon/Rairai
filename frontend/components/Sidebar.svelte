@@ -59,3 +59,142 @@ const active = $derived(
         </button>
     </footer>
 </aside>
+<style>
+    .aa-card {
+        flex: none;
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+        width: 100%;
+        text-align: start;
+        padding: 0.7rem 0.85rem;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--r-md);
+        box-shadow: var(--shadow-sm);
+        color: var(--text);
+        transition:
+            border-color var(--transition),
+            box-shadow var(--transition);
+    }
+    .aa-card:hover {
+        border-color: var(--border-strong);
+        box-shadow: var(--shadow);
+    }
+    .aa-emoji {
+        font-size: 22px;
+        line-height: 1;
+        flex-shrink: 0;
+    }
+    .aa-info {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        flex: 1;
+        gap: 0.05rem;
+    }
+    .aa-name {
+        font-size: 14px;
+        font-weight: 600;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .aa-desc {
+        font-size: 11px;
+        color: var(--text-faint);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .aa-chev {
+        color: var(--text-faint);
+        flex-shrink: 0;
+        transition: transform var(--transition);
+    }
+    .convos {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+    }
+    .convos-head {
+        flex: none;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 0 0.3rem;
+    }
+    .convos-label {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--text-faint);
+    }
+    .convos-list {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        padding: 0.15rem 0 0.3rem;
+    }
+    .convo {
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+        width: 100%;
+        text-align: start;
+        padding: 0.5rem 0.6rem;
+        border-radius: var(--r);
+        color: var(--text-muted);
+        font-size: 13px;
+        transition:
+            background var(--transition),
+            color var(--transition);
+    }
+    .convo:hover {
+        background: var(--surface-3);
+        color: var(--text);
+    }
+    .convo.active {
+        background: var(--primary-soft);
+        color: var(--primary);
+        font-weight: 600;
+    }
+    .convo .dot {
+        background: var(--text-faint);
+    }
+    .convo.active .dot {
+        background: var(--primary);
+    }
+    .convo .t {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .side-footer {
+        flex: none;
+    }
+    .side-foot-btn {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        width: 100%;
+        padding: 0.5rem 0.6rem;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--r-md);
+        box-shadow: var(--shadow-sm);
+        color: var(--text-muted);
+        font-size: 13px;
+        transition:
+            border-color var(--transition),
+            box-shadow var(--transition),
+            color var(--transition);
+    }
+    .side-foot-btn:hover {
+        border-color: var(--border-strong);
+        box-shadow: var(--shadow);
+        color: var(--text);
+    }
+</style>

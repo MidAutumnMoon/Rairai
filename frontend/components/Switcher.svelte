@@ -48,3 +48,86 @@ let { onClose, onEdit }: {
         {/each}
     </div>
 </aside>
+<style>
+    .manage {
+        display: flex;
+        flex-direction: column;
+        background: var(--surface);
+        height: 100%;
+        min-height: 0;
+    }
+    .drawer-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.6rem 0.85rem;
+        border-bottom: 1px solid var(--border);
+        flex: none;
+    }
+    .drawer-title {
+        font-weight: 700;
+        font-size: 14px;
+    }
+    .drawer-body {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        padding: 0.6rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.3rem;
+    }
+    .drawer-new {
+        align-self: flex-start;
+    }
+    .manage-row {
+        display: flex;
+        align-items: stretch;
+        border-radius: var(--r);
+    }
+    .manage-row:hover {
+        background: var(--surface-2);
+    }
+    .manage-row.active {
+        background: var(--primary-soft);
+    }
+    .manage-select {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex: 1;
+        min-width: 0;
+        padding: 0.45rem 0.5rem;
+        text-align: start;
+        color: var(--text);
+    }
+    .manage-row.active .manage-select {
+        color: var(--primary);
+        font-weight: 600;
+    }
+    .manage-select .emoji {
+        font-size: 18px;
+        line-height: 1;
+        flex-shrink: 0;
+    }
+    .manage-info {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        gap: 0.05rem;
+    }
+    .manage-name {
+        font-size: 13px;
+        font-weight: 600;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .manage-desc {
+        font-size: 11px;
+        color: var(--text-faint);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+</style>

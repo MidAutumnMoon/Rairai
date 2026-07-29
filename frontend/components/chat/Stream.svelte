@@ -62,3 +62,27 @@ async function onScroll() {
         <div class="error-banner">⚠ {chat.streamError}</div>
     {/if}
 </div>
+
+<style>
+    .stream {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        padding: 1.25rem 0;
+    }
+    .load-more {
+        text-align: center;
+        color: var(--text-faint);
+        font-size: 12px;
+        padding: 0.4rem;
+    }
+    .error-banner {
+        margin: 0.5rem 1rem;
+        padding: 0.55rem 0.8rem;
+        background: var(--danger-soft);
+        border: 1px solid var(--danger-soft);
+        border-radius: var(--r);
+        color: var(--danger);
+        font-size: 13px;
+    }
+</style>

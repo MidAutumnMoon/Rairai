@@ -45,3 +45,65 @@ function modelOf(log: NetworkLog): string {
         <NetworkLogDetail log={selected} />
     {/if}
 </aside>
+<style>
+    .inspector {
+        display: flex;
+        flex-direction: column;
+        background: var(--surface);
+        height: 100%;
+        min-height: 0;
+    }
+    .inspector :global(.count) {
+        color: var(--text-faint);
+        font-weight: 400;
+    }
+    .master {
+        max-height: 42%;
+        overflow-y: auto;
+        border-bottom: 1px solid var(--border);
+    }
+    .row {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        width: 100%;
+        text-align: start;
+        padding: 0.45rem 0.7rem;
+        border-bottom: 1px solid var(--border);
+        border-inline-start: 2px solid transparent;
+        font-size: 12px;
+    }
+    .row:hover {
+        background: var(--surface-2);
+    }
+    .row.active {
+        background: var(--primary-soft);
+        border-inline-start-color: var(--primary);
+    }
+    .row :global(.dot[data-status="success"]) {
+        background: var(--ok);
+    }
+    .row :global(.dot[data-status="error"]) {
+        background: var(--danger);
+    }
+    .row :global(.dot[data-status="streaming"]),
+    .row :global(.dot[data-status="running"]) {
+        background: var(--warn);
+    }
+    .row :global(.dot[data-status="pending"]) {
+        background: var(--text-faint);
+    }
+    .model {
+        font-family: var(--mono);
+        font-size: 12px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .dur {
+        margin-inline-start: auto;
+        color: var(--text-faint);
+        font-size: 11px;
+        flex-shrink: 0;
+    }
+</style>
