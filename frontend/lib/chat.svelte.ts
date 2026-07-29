@@ -20,6 +20,7 @@ import type {
     ConversationSummary,
 } from "$shared/api.ts";
 import {
+    chatPath,
     createAssistant as createAssistantApi,
     createConversation,
     deleteAssistant as deleteAssistantApi,
@@ -41,7 +42,7 @@ async function streamChat(
     onEvent: (e: ServerEvent) => void,
     signal: AbortSignal,
 ): Promise<void> {
-    const res = await fetch("/api/chat", {
+    const res = await fetch(chatPath(), {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(req),

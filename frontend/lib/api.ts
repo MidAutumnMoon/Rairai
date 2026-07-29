@@ -1,103 +1,112 @@
-// Frontend REST client for the settings/conversation API. Thin typed wrappers
-// over fetch; secrets are never present (the server returns `hasKey`-style
-// provider records only). Used by both the chat store and the settings page.
+// Frontend REST client. Routes are defined once in shared/routes.ts (method,
+// path, body/response schemas) and looked up by key here - there are no
+// hardcoded paths in this file. Adding/removing/changing a route in the
+// registry propagates to both sides at compile time; the response type is
+// inferred from the route's response schema via z.infer.
 
-import type {
-    Assistant,
-    AssistantInput,
-    AssistantSummary,
-    Conversation,
-    ConversationSummary,
-    MessagePage,
-    ModelsFetchResult,
-    Provider,
-    ProviderInput,
-    ProviderTestResult,
-    Settings,
-} from "$shared/api.ts";
+import type { z } from "zod";
+import { type RouteKey, routes } from "$shared/routes.ts";
 
 const BASE = "/api";
 
-async function getJSON<T>(path: string): Promise<T> {
-    const r = await fetch(`${BASE}${path}`);
-    if (!r.ok) throw new Error(`GET ${path}: ${r.status} ${await r.text()}`);
-    return r.json() as Promise<T>;
+/** The JSON response type a route returns. */
+type ResponseOf<K extends RouteKey> = z.infer<(typeof routes)[K]["response"]>;
+/** The request body type a route accepts (or undefined if it has none). */
+type BodyOf<K extends RouteKey> = (typeof routes)[K] extends { body: z.ZodType }
+    ? z.infer<(typeof routes)[K]["body"]>
+    : undefined;
+
+/** Build a URL from a route path template + params + optional query. */
+function buildUrl(
+    key: RouteKey,
+    params: Record<string, string> = {},
+    query: Record<string, unknown> = {},
+): string {
+    let path: string = routes[key].path;
+    for (const [k, v] of Object.entries(params)) {
+        path = path.replace(`:${k}`, encodeURIComponent(v));
+    }
+    const sp = new URLSearchParams();
+    for (const [k, v] of Object.entries(query)) {
+        if (v !== undefined && v !== null) sp.set(k, String(v));
+    }
+    const qs = sp.toString();
+    if (qs) path += `?${qs}`;
+    return `${BASE}${path}`;
 }
 
-async function sendJSON<T>(
-    method: string,
-    path: string,
-    body?: unknown,
-): Promise<T> {
-    const r = await fetch(`${BASE}${path}`, {
-        method,
-        headers: { "content-type": "application/json" },
-        body: body === undefined ? undefined : JSON.stringify(body),
+/** Issue a request for a route. Response type is inferred from the registry. */
+async function request<K extends RouteKey>(
+    key: K,
+    opts: {
+        params?: Record<string, string>;
+        body?: BodyOf<K>;
+        query?: Record<string, unknown>;
+    } = {},
+): Promise<ResponseOf<K>> {
+    const route = routes[key];
+    const path = buildUrl(key, opts.params, opts.query ?? {});
+    const hasBody = opts.body !== undefined;
+    const r = await fetch(path, {
+        method: route.method,
+        headers: hasBody ? { "content-type": "application/json" } : undefined,
+        body: hasBody ? JSON.stringify(opts.body) : undefined,
     });
     if (!r.ok) {
-        throw new Error(`${method} ${path}: ${r.status} ${await r.text()}`);
+        const detail = await r.text().catch(() => "");
+        throw new Error(
+            `${route.method} ${routes[key].path}: ${r.status} ${detail}`,
+        );
     }
-    return r.json() as Promise<T>;
+    return r.json() as Promise<ResponseOf<K>>;
 }
 
 // --- Providers ---
-export const listProviders = () => getJSON<Provider[]>("/providers");
-export const createProvider = (input: ProviderInput) =>
-    sendJSON<Provider>("POST", "/providers", input);
-export const updateProvider = (id: string, input: ProviderInput) =>
-    sendJSON<Provider>("PUT", `/providers/${encodeURIComponent(id)}`, input);
+export const listProviders = () => request("providers.list");
+export const createProvider = (input: BodyOf<"providers.create">) =>
+    request("providers.create", { body: input });
+export const updateProvider = (id: string, input: BodyOf<"providers.update">) =>
+    request("providers.update", { params: { id }, body: input });
 export const deleteProvider = (id: string) =>
-    sendJSON<{ ok: boolean }>("DELETE", `/providers/${encodeURIComponent(id)}`);
+    request("providers.delete", { params: { id } });
 export const testProvider = (id: string) =>
-    sendJSON<ProviderTestResult>(
-        "POST",
-        `/providers/${encodeURIComponent(id)}/test`,
-    );
+    request("providers.test", { params: { id } });
 export const fetchProviderModels = (id: string) =>
-    sendJSON<ModelsFetchResult>(
-        "POST",
-        `/providers/${encodeURIComponent(id)}/models`,
-    );
+    request("providers.fetchModels", { params: { id } });
 
 // --- Settings ---
-export const getSettings = () => getJSON<Settings>("/settings");
-export const updateSettings = (patch: Partial<Settings>) =>
-    sendJSON<Settings>("PUT", "/settings", patch);
+export const getSettings = () => request("settings.get");
+export const updateSettings = (patch: BodyOf<"settings.update">) =>
+    request("settings.update", { body: patch });
+
+// --- Assistants ---
+export const listAssistants = () => request("assistants.list");
+export const getAssistant = (id: string) =>
+    request("assistants.get", { params: { id } });
+export const createAssistant = (input: BodyOf<"assistants.create">) =>
+    request("assistants.create", { body: input });
+export const updateAssistant = (
+    id: string,
+    input: BodyOf<"assistants.update">,
+) => request("assistants.update", { params: { id }, body: input });
+export const deleteAssistant = (id: string) =>
+    request("assistants.delete", { params: { id } });
 
 // --- Conversations ---
 export const listConversations = (assistantId?: string) =>
-    getJSON<ConversationSummary[]>(
-        assistantId
-            ? `/conversations?assistantId=${encodeURIComponent(assistantId)}`
-            : "/conversations",
-    );
+    request("conversations.list", { query: { assistantId } });
 export const getConversation = (id: string) =>
-    getJSON<Conversation>(`/conversations/${encodeURIComponent(id)}`);
+    request("conversations.get", { params: { id } });
 export const getMessagesBefore = (id: string, beforeSeq: number, limit = 30) =>
-    getJSON<MessagePage>(
-        `/conversations/${
-            encodeURIComponent(id)
-        }/messages?before=${beforeSeq}&limit=${limit}`,
-    );
-export const createConversation = (
-    input: { assistantId?: string; title?: string } = {},
-) => sendJSON<Conversation>("POST", "/conversations", input);
+    request("conversations.messages", {
+        params: { id },
+        query: { before: beforeSeq, limit },
+    });
+export const createConversation = (input: BodyOf<"conversations.create">) =>
+    request("conversations.create", { body: input });
 export const deleteConversation = (id: string) =>
-    sendJSON<{ ok: boolean }>(
-        "DELETE",
-        `/conversations/${encodeURIComponent(id)}`,
-    );
+    request("conversations.delete", { params: { id } });
 
-// --- Assistants ---
-export const listAssistants = () => getJSON<AssistantSummary[]>("/assistants");
-export const getAssistant = (id: string) =>
-    getJSON<Assistant>(`/assistants/${encodeURIComponent(id)}`);
-export const createAssistant = (input: AssistantInput) =>
-    sendJSON<Assistant>("POST", "/assistants", input);
-export const updateAssistant = (id: string, input: AssistantInput) =>
-    sendJSON<Assistant>("PUT", `/assistants/${encodeURIComponent(id)}`, input);
-export const deleteAssistant = (id: string) =>
-    sendJSON<{ ok: boolean }>(
-        "DELETE",
-        `/assistants/${encodeURIComponent(id)}`,
-    );
+// --- Chat (SSE; the response is a stream, not JSON, so it's handled directly
+// in chat.svelte.ts. Exposed here only so the path isn't hardcoded there.) ---
+export const chatPath = () => `${BASE}${routes["chat.send"].path}`;

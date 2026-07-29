@@ -37,6 +37,7 @@ import {
     ProviderInputSchema,
     SettingsPatchSchema,
 } from "../shared/api.ts";
+import { routes } from "../shared/routes.ts";
 import { messageOf } from "../shared/error.ts";
 
 const app = new Hono();
@@ -84,26 +85,25 @@ ensureBootstrapAssistant(bootstrapProvider);
 app.get("/api/health", (c) => c.json({ ok: true }));
 
 // --- Providers (secrets never returned) --------------------------------------
+app.get(`/api${routes["providers.list"].path}`, (c) => c.json(listProviders()));
 
-app.get("/api/providers", (c) => c.json(listProviders()));
-
-app.post("/api/providers", async (c) => {
+app.post(`/api${routes["providers.create"].path}`, async (c) => {
     const input = await body(c, ProviderInputSchema);
     return c.json(createProvider(input), 201);
 });
 
-app.put("/api/providers/:id", async (c) => {
+app.put(`/api${routes["providers.update"].path}`, async (c) => {
     const input = await body(c, ProviderInputSchema);
     const p = updateProvider(c.req.param("id"), input);
     return p ? c.json(p) : c.json({ error: "not found" }, 404);
 });
 
-app.delete("/api/providers/:id", (c) => {
+app.delete(`/api${routes["providers.delete"].path}`, (c) => {
     const deleted = deleteProvider(c.req.param("id"));
     return deleted ? c.json({ ok: true }) : c.json({ error: "not found" }, 404);
 });
 
-app.post("/api/providers/:id/test", async (c) => {
+app.post(`/api${routes["providers.test"].path}`, async (c) => {
     try {
         return c.json(await testProvider(c.req.param("id")));
     } catch (e) {
@@ -113,7 +113,7 @@ app.post("/api/providers/:id/test", async (c) => {
 
 // Fetch a provider's model list from its API (OpenAI-compatible /models) and
 // store it. Returns the fetched models; the caller's UI can then pick one.
-app.post("/api/providers/:id/models", async (c) => {
+app.post(`/api${routes["providers.fetchModels"].path}`, async (c) => {
     try {
         const result = await fetchProviderModels(c.req.param("id"));
         setProviderModels(result.providerId, result.models);
@@ -125,34 +125,37 @@ app.post("/api/providers/:id/models", async (c) => {
 
 // --- Settings ----------------------------------------------------------------
 
-app.get("/api/settings", (c) => c.json(getSettings()));
+app.get(`/api${routes["settings.get"].path}`, (c) => c.json(getSettings()));
 
-app.put("/api/settings", async (c) => {
+app.put(`/api${routes["settings.update"].path}`, async (c) => {
     const patch = await body(c, SettingsPatchSchema);
     return c.json(updateSettings(patch));
 });
 
 // --- Assistants ---------------------------------------------------------------
 
-app.get("/api/assistants", (c) => c.json(listAssistants()));
+app.get(
+    `/api${routes["assistants.list"].path}`,
+    (c) => c.json(listAssistants()),
+);
 
-app.get("/api/assistants/:id", (c) => {
+app.get(`/api${routes["assistants.get"].path}`, (c) => {
     const a = getAssistant(c.req.param("id"));
     return a ? c.json(a) : c.json({ error: "not found" }, 404);
 });
 
-app.post("/api/assistants", async (c) => {
+app.post(`/api${routes["assistants.create"].path}`, async (c) => {
     const input = await body(c, AssistantInputSchema);
     return c.json(createAssistant(input), 201);
 });
 
-app.put("/api/assistants/:id", async (c) => {
+app.put(`/api${routes["assistants.update"].path}`, async (c) => {
     const input = await body(c, AssistantInputSchema);
     const a = updateAssistant(c.req.param("id"), input);
     return a ? c.json(a) : c.json({ error: "not found" }, 404);
 });
 
-app.delete("/api/assistants/:id", (c) => {
+app.delete(`/api${routes["assistants.delete"].path}`, (c) => {
     const id = c.req.param("id");
     const deleted = deleteAssistant(id);
     if (deleted && getSettings().activeAssistantId === id) {
@@ -164,21 +167,21 @@ app.delete("/api/assistants/:id", (c) => {
 // --- Conversations -----------------------------------------------------------
 
 app.get(
-    "/api/conversations",
+    `/api${routes["conversations.list"].path}`,
     (c) => c.json(listConversations(c.req.query("assistantId") || undefined)),
 );
 
-app.post("/api/conversations", async (c) => {
+app.post(`/api${routes["conversations.create"].path}`, async (c) => {
     const input = await body(c, ConversationCreateSchema);
     return c.json(createConversation(input), 201);
 });
 
-app.get("/api/conversations/:id", (c) => {
+app.get(`/api${routes["conversations.get"].path}`, (c) => {
     const conv = getConversationPage(c.req.param("id"));
     return conv ? c.json(conv) : c.json({ error: "not found" }, 404);
 });
 
-app.get("/api/conversations/:id/messages", (c) => {
+app.get(`/api${routes["conversations.messages"].path}`, (c) => {
     const parsed = z.object({
         before: z.coerce.number().int(),
         limit: z.coerce.number().int().optional().default(30),
@@ -202,7 +205,7 @@ app.get("/api/conversations/:id/messages", (c) => {
 });
 
 app.delete(
-    "/api/conversations/:id",
+    `/api${routes["conversations.delete"].path}`,
     (c) =>
         deleteConversation(c.req.param("id"))
             ? c.json({ ok: true })
@@ -213,7 +216,7 @@ app.delete(
 // The body is validated before the stream starts: a bad request gets a clean
 // 400, not a half-open SSE connection. Mid-stream errors become `error` events.
 
-app.post("/api/chat", async (c) => {
+app.post(`/api${routes["chat.send"].path}`, async (c) => {
     const req = await body(c, ChatRequestSchema);
     c.header("Content-Type", "text/event-stream");
     c.header("Cache-Control", "no-cache");
