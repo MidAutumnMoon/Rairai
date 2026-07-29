@@ -5,7 +5,7 @@
 // On an empty provider table we bootstrap one from env (or a faux dev provider).
 //
 // All LLM HTTP happens here, server-side - no CORS, secrets never leave the server.
-
+import { Agent } from "@earendil-works/pi-agent-core";
 import {
     type ApiKeyAuth,
     createModels,
@@ -23,9 +23,14 @@ import { openAICompletionsApi } from "@earendil-works/pi-ai/api/openai-completio
 import { openAIResponsesApi } from "@earendil-works/pi-ai/api/openai-responses.lazy";
 import { anthropicMessagesApi } from "@earendil-works/pi-ai/api/anthropic-messages.lazy";
 import type { Context } from "@earendil-works/pi-ai";
-import type { ApiType, ModelsFetchResult } from "../../shared/api.ts";
-import { getProvider, groupOf, resolveProviderKey } from "../db.ts";
+import {
+    type ApiType,
+    groupOf,
+    type ModelsFetchResult,
+} from "../../shared/api.ts";
+import { getProvider, resolveProviderKey } from "../db/mod.ts";
 import type { Model as WireModel } from "../../shared/api.ts";
+import { messageOf } from "../../shared/error.ts";
 
 export interface ResolvedModel {
     models: MutableModels;
@@ -186,4 +191,64 @@ export async function fetchProviderModels(
             return { id, name: m.name ?? id, group: groupOf(id) };
         });
     return { providerId, models: fetched };
+}
+
+/** Resolve a provider and run a one-token probe to verify the credential +
+ *  endpoint. Moved here from main.ts: it's provider LLM logic, not HTTP-layer
+ *  wiring. */
+export function testProvider(
+    id: string,
+): Promise<{ ok: boolean; error?: string }> {
+    const p = getProvider(id);
+    if (!p) return Promise.resolve({ ok: false, error: "provider not found" });
+    const { models, model } = resolveProviderModel(id, p.models[0]?.id ?? null);
+    const { promise, resolve } = Promise.withResolvers<
+        { ok: boolean; error?: string }
+    >();
+    let settled = false;
+    const settle = (ok: boolean, error?: string) => {
+        if (settled) return;
+        settled = true;
+        resolve({ ok, error });
+    };
+    const agent = new Agent({
+        initialState: {
+            systemPrompt: "You are a connection test.",
+            model,
+            tools: [],
+        },
+        streamFn: models.streamSimple.bind(models),
+    });
+    const unsub = agent.subscribe((ev) => {
+        if (
+            ev.type === "message_update" &&
+            ev.assistantMessageEvent.type === "text_delta"
+        ) {
+            settle(true);
+        } else if (
+            ev.type === "message_end" &&
+            ev.message.role === "assistant" &&
+            (ev.message.stopReason === "error" ||
+                ev.message.stopReason === "aborted")
+        ) {
+            settle(false, ev.message.errorMessage ?? "error");
+        }
+    });
+    const timer = setTimeout(() => {
+        settle(false, "timeout (15s)");
+        agent.abort();
+    }, 15000);
+    agent
+        .prompt("Reply with exactly: ok")
+        .then(() => {
+            clearTimeout(timer);
+            unsub();
+            settle(true);
+        })
+        .catch((e) => {
+            clearTimeout(timer);
+            unsub();
+            settle(false, messageOf(e));
+        });
+    return promise;
 }

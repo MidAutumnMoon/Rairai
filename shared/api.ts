@@ -34,6 +34,21 @@ export const ModelSchema = z.object({
 });
 export type Model = z.infer<typeof ModelSchema>;
 
+/** Derive a model's maker/group from its id: the segment before `/`, else the
+ *  first `-`-segment (Cherry Studio's derivation). Used when fetching models
+ *  from an API and when migrating legacy `string[]` model lists. */
+export function groupOf(modelId: string): string {
+    const slash = modelId.split("/");
+    if (slash.length > 1) return slash[0];
+    const dash = modelId.split("-");
+    return dash[0] || "other";
+}
+
+/** Build a Model from a bare id (name == id, group derived). */
+export function toModel(id: string): Model {
+    return ModelSchema.parse({ id, name: id, group: groupOf(id) });
+}
+
 /** The OpenAI-compatible `/models` response shape we parse when fetching. */
 export const ModelsFetchResultSchema = z.object({
     providerId: z.string(),

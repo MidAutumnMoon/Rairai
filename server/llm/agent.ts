@@ -1,22 +1,14 @@
 // The chat runner: POST /api/chat identifies a conversation + new user text.
 // The backend owns the history - it loads the conversation, persists the user
 // message, runs the pi Agent, streams events, and persists the final assistant
-// message. Network-log capture (the request inspector's data) is unchanged.
+// message. Message mapping + network capture live in their own modules.
 
-import {
-    Agent,
-    type AgentMessage,
-    type StreamFn,
-} from "@earendil-works/pi-agent-core";
-import type {
-    AssistantMessage,
-    Message,
-    TextContent,
-    ThinkingContent,
-    Usage,
-} from "@earendil-works/pi-ai";
+import { Agent, type StreamFn } from "@earendil-works/pi-agent-core";
+import type { AssistantMessage } from "@earendil-works/pi-ai";
 import { resolveProviderModel } from "./providers.ts";
 import { sampleTools } from "./tools.ts";
+import { buildPreamble, resultToText, toPiMessages } from "./messages.ts";
+import { NetworkCapture } from "./capture.ts";
 import {
     addMessage,
     getAssistant,
@@ -25,212 +17,15 @@ import {
     listProviders,
     NEW_CHAT_TITLE,
     updateConversationTitle,
-} from "../db.ts";
+} from "../db/mod.ts";
 import type {
     ChatMessage,
     ChatRequest,
-    NetworkLog,
     ServerEvent,
     TokenUsage,
     ToolCall,
 } from "../../shared/chat-events.ts";
 import { uid } from "../../shared/id.ts";
-import type { PromptBlock } from "../../shared/api.ts";
-
-const text = (s: string): TextContent => ({ type: "text", text: s });
-
-const zeroUsage: Usage = {
-    input: 0,
-    output: 0,
-    cacheRead: 0,
-    cacheWrite: 0,
-    totalTokens: 0,
-    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
-};
-
-function safeParse<T>(s: string | undefined, fallback: T): T {
-    if (!s) return fallback;
-    try {
-        return JSON.parse(s) as T;
-    } catch {
-        return fallback;
-    }
-}
-
-function toPiUsage(u: TokenUsage): Usage {
-    return {
-        ...zeroUsage,
-        input: u.input,
-        output: u.output,
-        totalTokens: u.input + u.output,
-    };
-}
-
-/** Reconstruct pi Message[] from stored ChatMessage[], expanding each assistant
- *  tool call into a toolCall part plus a toolResult message. */
-function toPiMessages(
-    history: ChatMessage[],
-    api: string,
-    provider: string,
-    model: string,
-): AgentMessage[] {
-    const out: Message[] = [];
-    for (const m of history) {
-        if (m.role === "user") {
-            out.push({
-                role: "user",
-                content: [text(m.text)],
-                timestamp: m.createdAt,
-            });
-            continue;
-        }
-        const parts: (TextContent | ThinkingContent | {
-            type: "toolCall";
-            id: string;
-            name: string;
-            arguments: Record<string, unknown>;
-        })[] = [];
-        if (m.reasoning) {
-            parts.push({ type: "thinking", thinking: m.reasoning });
-        }
-        if (m.text) parts.push(text(m.text));
-        for (const tc of m.toolCalls ?? []) {
-            parts.push({
-                type: "toolCall",
-                id: tc.id,
-                name: tc.name,
-                arguments: safeParse(tc.args, {}),
-            });
-        }
-        out.push({
-            role: "assistant",
-            content: parts,
-            api,
-            provider,
-            model,
-            usage: m.usage ? toPiUsage(m.usage) : zeroUsage,
-            stopReason: (m.toolCalls?.length ?? 0) > 0 ? "toolUse" : "stop",
-            timestamp: m.createdAt,
-        });
-        for (const tc of m.toolCalls ?? []) {
-            out.push({
-                role: "toolResult",
-                toolCallId: tc.id,
-                toolName: tc.name,
-                content: [text(tc.result ?? "")],
-                isError: tc.status === "error",
-                timestamp: m.createdAt,
-            });
-        }
-    }
-    return out as unknown as AgentMessage[];
-}
-
-function resultToText(result: unknown): string {
-    if (!result || typeof result !== "object") return JSON.stringify(result);
-    const r = result as { content?: { type: string; text?: string }[] };
-    if (Array.isArray(r.content)) {
-        return r.content.map((c) => (c.type === "text" ? c.text : "")).join(
-            "\n",
-        );
-    }
-    return JSON.stringify(result);
-}
-
-/** Captures one outbound LLM HTTP call (one assistant turn) for the network
- *  inspector. The lifecycle is `begin()` (streamFn starts) → `trackChunk()`
- *  (each delta) → `finalize()` (assistant message completes); that ordering is
- *  the invariant the agent loop relies on. Encapsulating it here keeps the
- *  begin→finalize contract in one place instead of spread across loose locals
- *  where a missed `begin` would silently emit a log with a null request. */
-class NetworkCapture {
-    private id = "";
-    private start = 0;
-    private request: NetworkLog["request"] | null = null;
-    private chunks: { timestamp: number; data: string }[] = [];
-
-    begin(request: NetworkLog["request"]): void {
-        this.id = `nl_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-        this.start = Date.now();
-        this.request = request;
-        this.chunks = [];
-    }
-
-    trackChunk(delta: string): void {
-        this.chunks.push({ timestamp: Date.now(), data: delta });
-    }
-
-    finalize(am: AssistantMessage): NetworkLog {
-        const isError = am.stopReason === "error" ||
-            am.stopReason === "aborted";
-        return {
-            id: this.id,
-            timestamp: this.start,
-            request: this.request!,
-            response: {
-                status: isError ? 500 : 200,
-                statusText: isError ? (am.errorMessage ?? "error") : "OK",
-                headers: {},
-                body: am,
-                isStream: true,
-                streamChunks: this.chunks,
-            },
-            error: isError ? { message: am.errorMessage ?? "error" } : null,
-            durationMs: Date.now() - this.start,
-            status: isError ? "error" : "success",
-        };
-    }
-}
-
-/** Build the model preamble from an assistant's prompt blocks: enabled system
- *  blocks become the Agent's systemPrompt (joined); enabled user/assistant
- *  blocks become example messages, split around the `history` marker so they
- *  prepend and/or append to the real conversation history. */
-function buildPreamble(
-    prompts: PromptBlock[],
-    api: string,
-    provider: string,
-    model: string,
-): {
-    systemPrompt: string;
-    preMessages: AgentMessage[];
-    postMessages: AgentMessage[];
-} {
-    const histIdx = prompts.findIndex((p) => p.role === "history");
-    const pre = histIdx < 0 ? prompts : prompts.slice(0, histIdx);
-    const post = histIdx < 0 ? [] : prompts.slice(histIdx + 1);
-    const systemPrompt = prompts
-        .filter((p) => p.enabled && p.role === "system" && p.content)
-        .map((p) => p.content)
-        .join("\n\n");
-    const blockToMessage = (p: PromptBlock): Message =>
-        p.role === "user"
-            ? {
-                role: "user",
-                content: [text(p.content)],
-                timestamp: Date.now(),
-            }
-            : {
-                role: "assistant",
-                content: [text(p.content)],
-                api,
-                provider,
-                model,
-                usage: zeroUsage,
-                stopReason: "stop",
-                timestamp: Date.now(),
-            };
-    const example = (ps: PromptBlock[]) =>
-        ps.filter((p) =>
-            p.enabled && (p.role === "user" || p.role === "assistant")
-        )
-            .map(blockToMessage) as unknown as AgentMessage[];
-    return {
-        systemPrompt,
-        preMessages: example(pre),
-        postMessages: example(post),
-    };
-}
 
 export async function runChat(
     req: ChatRequest,

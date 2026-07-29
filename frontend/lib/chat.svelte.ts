@@ -1,16 +1,15 @@
-// Chat store + SSE client, now server-backed. The backend owns conversations
-// (persisted in SQLite); this store is a cache/view: it loads the conversation
-// list, opens one fully (with messages), and sends {conversationId, text} per
-// turn - never the full history. Streamed events mutate the active message.
+// Chat store: reactive state + event application. The backend owns
+// conversations (persisted in SQLite); this store is a cache/view: it loads
+// the conversation list, opens one fully (with messages), and sends
+// {conversationId, text} per turn - never the full history. Streamed events
+// mutate the active message.
 //
 // Svelte 5 runes: $state on class fields makes them deeply reactive.
 
 import {
     type ChatMessage,
-    type ChatRequest,
     type NetworkLog,
     type ServerEvent,
-    ServerEventSchema,
 } from "$shared/chat-events.ts";
 import type {
     Assistant,
@@ -20,7 +19,6 @@ import type {
     ConversationSummary,
 } from "$shared/api.ts";
 import {
-    chatPath,
     createAssistant as createAssistantApi,
     createConversation,
     deleteAssistant as deleteAssistantApi,
@@ -33,50 +31,9 @@ import {
     updateAssistant as updateAssistantApi,
     updateSettings,
 } from "./api.ts";
+import { streamChat } from "./stream.ts";
 import { uid } from "$shared/id.ts";
 import { messageOf } from "$shared/error.ts";
-
-/** Stream ServerEvents from POST /api/chat by parsing the SSE wire format. */
-async function streamChat(
-    req: ChatRequest,
-    onEvent: (e: ServerEvent) => void,
-    signal: AbortSignal,
-): Promise<void> {
-    const res = await fetch(chatPath(), {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(req),
-        signal,
-    });
-    if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
-
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-    while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        let sep: number;
-        while ((sep = buffer.indexOf("\n\n")) >= 0) {
-            const frame = buffer.slice(0, sep);
-            buffer = buffer.slice(sep + 2);
-            const line = frame.trim();
-            if (line.startsWith("data: ")) {
-                try {
-                    const ev = ServerEventSchema.safeParse(
-                        JSON.parse(line.slice(6)),
-                    );
-                    if (ev.success) onEvent(ev.data);
-                    // a schema-invalid event is skipped, not thrown: one bad
-                    // frame must not kill an in-progress stream.
-                } catch {
-                    // ignore malformed frames (partial flushes / bad JSON)
-                }
-            }
-        }
-    }
-}
 
 class ChatStore {
     assistants = $state<AssistantSummary[]>([]);

@@ -1,9 +1,8 @@
 import { type Context, Hono } from "@hono/hono";
 import { stream } from "@hono/hono/streaming";
 import { z, ZodError, type ZodIssue, type ZodType } from "zod";
-import { Agent } from "@earendil-works/pi-agent-core";
 import { runChat } from "./llm/agent.ts";
-import { fetchProviderModels, resolveProviderModel } from "./llm/providers.ts";
+import { fetchProviderModels, testProvider } from "./llm/providers.ts";
 import {
     createAssistant,
     createConversation,
@@ -16,7 +15,6 @@ import {
     getAssistant,
     getConversationPage,
     getMessagesBefore,
-    getProvider,
     getSettings,
     listAssistants,
     listConversations,
@@ -25,7 +23,7 @@ import {
     updateAssistant,
     updateProvider,
     updateSettings,
-} from "./db.ts";
+} from "./db/mod.ts";
 import {
     ChatRequestSchema,
     type ServerEvent,
@@ -248,61 +246,5 @@ app.post(`/api${routes["chat.send"].path}`, async (c) => {
         }
     });
 });
-
-/** Resolve a provider and run a one-token probe to verify the credential + endpoint. */
-function testProvider(id: string): Promise<{ ok: boolean; error?: string }> {
-    const p = getProvider(id);
-    if (!p) return Promise.resolve({ ok: false, error: "provider not found" });
-    const { models, model } = resolveProviderModel(id, p.models[0]?.id ?? null);
-    const { promise, resolve } = Promise.withResolvers<
-        { ok: boolean; error?: string }
-    >();
-    let settled = false;
-    const settle = (ok: boolean, error?: string) => {
-        if (settled) return;
-        settled = true;
-        resolve({ ok, error });
-    };
-    const agent = new Agent({
-        initialState: {
-            systemPrompt: "You are a connection test.",
-            model,
-            tools: [],
-        },
-        streamFn: models.streamSimple.bind(models),
-    });
-    const unsub = agent.subscribe((ev) => {
-        if (
-            ev.type === "message_update" &&
-            ev.assistantMessageEvent.type === "text_delta"
-        ) {
-            settle(true);
-        } else if (
-            ev.type === "message_end" &&
-            ev.message.role === "assistant" &&
-            (ev.message.stopReason === "error" ||
-                ev.message.stopReason === "aborted")
-        ) {
-            settle(false, ev.message.errorMessage ?? "error");
-        }
-    });
-    const timer = setTimeout(() => {
-        settle(false, "timeout (15s)");
-        agent.abort();
-    }, 15000);
-    agent
-        .prompt("Reply with exactly: ok")
-        .then(() => {
-            clearTimeout(timer);
-            unsub();
-            settle(true);
-        })
-        .catch((e) => {
-            clearTimeout(timer);
-            unsub();
-            settle(false, messageOf(e));
-        });
-    return promise;
-}
 
 Deno.serve({ port: 36500 }, app.fetch);
