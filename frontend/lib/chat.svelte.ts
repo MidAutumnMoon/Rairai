@@ -6,11 +6,11 @@
 // Svelte 5 runes: $state on class fields makes them deeply reactive.
 
 import {
-    ServerEventSchema,
     type ChatMessage,
     type ChatRequest,
     type NetworkLog,
     type ServerEvent,
+    ServerEventSchema,
 } from "../../shared/chat-events.ts";
 import type {
     Assistant,
@@ -63,7 +63,9 @@ async function streamChat(
             const line = frame.trim();
             if (line.startsWith("data: ")) {
                 try {
-                    const ev = ServerEventSchema.safeParse(JSON.parse(line.slice(6)));
+                    const ev = ServerEventSchema.safeParse(
+                        JSON.parse(line.slice(6)),
+                    );
                     if (ev.success) onEvent(ev.data);
                     // a schema-invalid event is skipped, not thrown: one bad
                     // frame must not kill an in-progress stream.
@@ -96,13 +98,14 @@ class ChatStore {
     async init(): Promise<void> {
         await this.loadAssistants();
         const settings = await getSettings();
-        this.activeAssistantId = settings.activeAssistantId
-            ?? this.assistants[0]?.id
-            ?? null;
+        this.activeAssistantId = settings.activeAssistantId ??
+            this.assistants[0]?.id ??
+            null;
         if (!this.activeAssistantId) return;
         await this.loadConversations();
-        if (this.conversations.length) await this.open(this.conversations[0].id);
-        else await this.newConversation();
+        if (this.conversations.length) {
+            await this.open(this.conversations[0].id);
+        } else await this.newConversation();
     }
 
     async loadAssistants(): Promise<void> {
@@ -110,7 +113,9 @@ class ChatStore {
     }
 
     async loadConversations(): Promise<void> {
-        this.conversations = await listConversations(this.activeAssistantId ?? undefined);
+        this.conversations = await listConversations(
+            this.activeAssistantId ?? undefined,
+        );
     }
 
     /** Switch the active assistant (persists to settings) and open its chats. */
@@ -120,8 +125,9 @@ class ChatStore {
         await updateSettings({ activeAssistantId: id });
         await this.loadConversations();
         this.networkLogs = [];
-        if (this.conversations.length) await this.open(this.conversations[0].id);
-        else await this.newConversation();
+        if (this.conversations.length) {
+            await this.open(this.conversations[0].id);
+        } else await this.newConversation();
     }
 
     async open(id: string): Promise<void> {
@@ -146,7 +152,9 @@ class ChatStore {
     }
 
     async newConversation(): Promise<void> {
-        const conv = await createConversation({ assistantId: this.activeAssistantId ?? undefined });
+        const conv = await createConversation({
+            assistantId: this.activeAssistantId ?? undefined,
+        });
         this.activeConversation = conv;
         this.activeId = conv.id;
         await this.loadConversations();
@@ -182,10 +190,13 @@ class ChatStore {
         await this.loadAssistants();
         if (this.activeAssistantId !== id) return;
         this.activeAssistantId = this.assistants[0]?.id ?? null;
-        if (this.activeAssistantId) await updateSettings({ activeAssistantId: this.activeAssistantId });
+        if (this.activeAssistantId) {
+            await updateSettings({ activeAssistantId: this.activeAssistantId });
+        }
         await this.loadConversations();
-        if (this.conversations.length) await this.open(this.conversations[0].id);
-        else if (this.activeAssistantId) await this.newConversation();
+        if (this.conversations.length) {
+            await this.open(this.conversations[0].id);
+        } else if (this.activeAssistantId) await this.newConversation();
     }
 
     async sendMessage(text: string): Promise<void> {
@@ -229,7 +240,8 @@ class ChatStore {
                 this.abortCtl.signal,
             );
         } catch (e) {
-            const aborted = e instanceof DOMException && e.name === "AbortError";
+            const aborted = e instanceof DOMException &&
+                e.name === "AbortError";
             if (!aborted && !this.streamError) {
                 this.streamError = messageOf(e);
             }
@@ -240,7 +252,10 @@ class ChatStore {
                 const i = conv.messages.findIndex((m) => m.id === streamMsg.id);
                 if (i >= 0) {
                     const m = conv.messages[i];
-                    if (!m.text && !m.reasoning && !(m.toolCalls && m.toolCalls.length)) {
+                    if (
+                        !m.text && !m.reasoning &&
+                        !(m.toolCalls && m.toolCalls.length)
+                    ) {
                         conv.messages.splice(i, 1);
                     }
                 }
@@ -266,7 +281,9 @@ class ChatStore {
             case "tool_call":
                 if (msg) {
                     if (!msg.toolCalls) msg.toolCalls = [];
-                    const idx = msg.toolCalls.findIndex((t) => t.id === ev.toolCall.id);
+                    const idx = msg.toolCalls.findIndex((t) =>
+                        t.id === ev.toolCall.id
+                    );
                     if (idx >= 0) msg.toolCalls[idx] = ev.toolCall;
                     else msg.toolCalls.push(ev.toolCall);
                 }

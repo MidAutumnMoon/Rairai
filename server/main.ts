@@ -3,7 +3,7 @@ import { stream } from "@hono/hono/streaming";
 import { z, ZodError, type ZodIssue, type ZodType } from "zod";
 import { Agent } from "@earendil-works/pi-agent-core";
 import { runChat } from "./llm/agent.ts";
-import { resolveProviderModel } from "./llm/providers.ts";
+import { fetchProviderModels, resolveProviderModel } from "./llm/providers.ts";
 import {
     createAssistant,
     createConversation,
@@ -21,11 +21,16 @@ import {
     listAssistants,
     listConversations,
     listProviders,
+    setProviderModels,
     updateAssistant,
     updateProvider,
     updateSettings,
 } from "./db.ts";
-import { sseLine, ChatRequestSchema, type ServerEvent } from "../shared/chat-events.ts";
+import {
+    ChatRequestSchema,
+    type ServerEvent,
+    sseLine,
+} from "../shared/chat-events.ts";
 import {
     AssistantInputSchema,
     ConversationCreateSchema,
@@ -63,15 +68,18 @@ app.onError((e, c) => {
     if (e instanceof ZodError) {
         // A ZodError escaping a route is from the DB layer (a stored row that
         // doesn't match its schema) - a server data fault, not a client error.
-        return c.json({ error: "stored data failed validation", issues: e.issues }, 500);
+        return c.json({
+            error: "stored data failed validation",
+            issues: e.issues,
+        }, 500);
     }
     return c.json({ error: messageOf(e) }, 500);
 });
 
 // Seed an env/faux provider + a default assistant on first run so the app is
 // usable immediately.
-ensureBootstrapProvider();
-ensureBootstrapAssistant();
+const bootstrapProvider = ensureBootstrapProvider();
+ensureBootstrapAssistant(bootstrapProvider);
 
 app.get("/api/health", (c) => c.json({ ok: true }));
 
@@ -91,11 +99,7 @@ app.put("/api/providers/:id", async (c) => {
 });
 
 app.delete("/api/providers/:id", (c) => {
-    const id = c.req.param("id");
-    const deleted = deleteProvider(id);
-    if (deleted && getSettings().activeProviderId === id) {
-        updateSettings({ activeProviderId: null, activeModel: null });
-    }
+    const deleted = deleteProvider(c.req.param("id"));
     return deleted ? c.json({ ok: true }) : c.json({ error: "not found" }, 404);
 });
 
@@ -104,6 +108,18 @@ app.post("/api/providers/:id/test", async (c) => {
         return c.json(await testProvider(c.req.param("id")));
     } catch (e) {
         return c.json({ ok: false, error: messageOf(e) });
+    }
+});
+
+// Fetch a provider's model list from its API (OpenAI-compatible /models) and
+// store it. Returns the fetched models; the caller's UI can then pick one.
+app.post("/api/providers/:id/models", async (c) => {
+    try {
+        const result = await fetchProviderModels(c.req.param("id"));
+        setProviderModels(result.providerId, result.models);
+        return c.json(result);
+    } catch (e) {
+        return c.json({ error: messageOf(e) }, 500);
     }
 });
 
@@ -147,7 +163,10 @@ app.delete("/api/assistants/:id", (c) => {
 
 // --- Conversations -----------------------------------------------------------
 
-app.get("/api/conversations", (c) => c.json(listConversations(c.req.query("assistantId") || undefined)));
+app.get(
+    "/api/conversations",
+    (c) => c.json(listConversations(c.req.query("assistantId") || undefined)),
+);
 
 app.post("/api/conversations", async (c) => {
     const input = await body(c, ConversationCreateSchema);
@@ -163,15 +182,31 @@ app.get("/api/conversations/:id/messages", (c) => {
     const parsed = z.object({
         before: z.coerce.number().int(),
         limit: z.coerce.number().int().optional().default(30),
-    }).safeParse({ before: c.req.query("before"), limit: c.req.query("limit") });
+    }).safeParse({
+        before: c.req.query("before"),
+        limit: c.req.query("limit"),
+    });
     if (!parsed.success) {
-        return c.json({ error: "missing or invalid 'before'", issues: parsed.error.issues }, 400);
+        return c.json({
+            error: "missing or invalid 'before'",
+            issues: parsed.error.issues,
+        }, 400);
     }
-    return c.json(getMessagesBefore(c.req.param("id"), parsed.data.before, parsed.data.limit));
+    return c.json(
+        getMessagesBefore(
+            c.req.param("id"),
+            parsed.data.before,
+            parsed.data.limit,
+        ),
+    );
 });
 
-app.delete("/api/conversations/:id", (c) =>
-    deleteConversation(c.req.param("id")) ? c.json({ ok: true }) : c.json({ error: "not found" }, 404),
+app.delete(
+    "/api/conversations/:id",
+    (c) =>
+        deleteConversation(c.req.param("id"))
+            ? c.json({ ok: true })
+            : c.json({ error: "not found" }, 404),
 );
 
 // --- Chat (SSE) --------------------------------------------------------------
@@ -196,7 +231,11 @@ app.post("/api/chat", async (c) => {
         ]);
 
         try {
-            await runChat(req, (ev) => { try { s.write(sseLine(ev)); } catch { /* client gone */ } }, signal);
+            await runChat(req, (ev) => {
+                try {
+                    s.write(sseLine(ev));
+                } catch { /* client gone */ }
+            }, signal);
         } catch (e) {
             const err: ServerEvent = {
                 type: "error",
@@ -211,8 +250,10 @@ app.post("/api/chat", async (c) => {
 function testProvider(id: string): Promise<{ ok: boolean; error?: string }> {
     const p = getProvider(id);
     if (!p) return Promise.resolve({ ok: false, error: "provider not found" });
-    const { models, model } = resolveProviderModel(id, p.models[0] ?? null);
-    const { promise, resolve } = Promise.withResolvers<{ ok: boolean; error?: string }>();
+    const { models, model } = resolveProviderModel(id, p.models[0]?.id ?? null);
+    const { promise, resolve } = Promise.withResolvers<
+        { ok: boolean; error?: string }
+    >();
     let settled = false;
     const settle = (ok: boolean, error?: string) => {
         if (settled) return;
@@ -220,16 +261,24 @@ function testProvider(id: string): Promise<{ ok: boolean; error?: string }> {
         resolve({ ok, error });
     };
     const agent = new Agent({
-        initialState: { systemPrompt: "You are a connection test.", model, tools: [] },
+        initialState: {
+            systemPrompt: "You are a connection test.",
+            model,
+            tools: [],
+        },
         streamFn: models.streamSimple.bind(models),
     });
     const unsub = agent.subscribe((ev) => {
-        if (ev.type === "message_update" && ev.assistantMessageEvent.type === "text_delta") {
+        if (
+            ev.type === "message_update" &&
+            ev.assistantMessageEvent.type === "text_delta"
+        ) {
             settle(true);
         } else if (
             ev.type === "message_end" &&
             ev.message.role === "assistant" &&
-            (ev.message.stopReason === "error" || ev.message.stopReason === "aborted")
+            (ev.message.stopReason === "error" ||
+                ev.message.stopReason === "aborted")
         ) {
             settle(false, ev.message.errorMessage ?? "error");
         }

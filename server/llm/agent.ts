@@ -3,8 +3,18 @@
 // message, runs the pi Agent, streams events, and persists the final assistant
 // message. Network-log capture (the request inspector's data) is unchanged.
 
-import { Agent, type AgentMessage, type StreamFn } from "@earendil-works/pi-agent-core";
-import type { AssistantMessage, Message, TextContent, ThinkingContent, Usage } from "@earendil-works/pi-ai";
+import {
+    Agent,
+    type AgentMessage,
+    type StreamFn,
+} from "@earendil-works/pi-agent-core";
+import type {
+    AssistantMessage,
+    Message,
+    TextContent,
+    ThinkingContent,
+    Usage,
+} from "@earendil-works/pi-ai";
 import { resolveProviderModel } from "./providers.ts";
 import { sampleTools } from "./tools.ts";
 import {
@@ -13,16 +23,16 @@ import {
     getConversation,
     getSettings,
     listProviders,
-    updateConversationTitle,
     NEW_CHAT_TITLE,
+    updateConversationTitle,
 } from "../db.ts";
 import type {
     ChatMessage,
     ChatRequest,
     NetworkLog,
     ServerEvent,
-    ToolCall,
     TokenUsage,
+    ToolCall,
 } from "../../shared/chat-events.ts";
 import { uid } from "../../shared/id.ts";
 import type { PromptBlock } from "../../shared/api.ts";
@@ -58,11 +68,20 @@ function toPiUsage(u: TokenUsage): Usage {
 
 /** Reconstruct pi Message[] from stored ChatMessage[], expanding each assistant
  *  tool call into a toolCall part plus a toolResult message. */
-function toPiMessages(history: ChatMessage[], api: string, provider: string, model: string): AgentMessage[] {
+function toPiMessages(
+    history: ChatMessage[],
+    api: string,
+    provider: string,
+    model: string,
+): AgentMessage[] {
     const out: Message[] = [];
     for (const m of history) {
         if (m.role === "user") {
-            out.push({ role: "user", content: [text(m.text)], timestamp: m.createdAt });
+            out.push({
+                role: "user",
+                content: [text(m.text)],
+                timestamp: m.createdAt,
+            });
             continue;
         }
         const parts: (TextContent | ThinkingContent | {
@@ -71,10 +90,17 @@ function toPiMessages(history: ChatMessage[], api: string, provider: string, mod
             name: string;
             arguments: Record<string, unknown>;
         })[] = [];
-        if (m.reasoning) parts.push({ type: "thinking", thinking: m.reasoning });
+        if (m.reasoning) {
+            parts.push({ type: "thinking", thinking: m.reasoning });
+        }
         if (m.text) parts.push(text(m.text));
         for (const tc of m.toolCalls ?? []) {
-            parts.push({ type: "toolCall", id: tc.id, name: tc.name, arguments: safeParse(tc.args, {}) });
+            parts.push({
+                type: "toolCall",
+                id: tc.id,
+                name: tc.name,
+                arguments: safeParse(tc.args, {}),
+            });
         }
         out.push({
             role: "assistant",
@@ -104,7 +130,9 @@ function resultToText(result: unknown): string {
     if (!result || typeof result !== "object") return JSON.stringify(result);
     const r = result as { content?: { type: string; text?: string }[] };
     if (Array.isArray(r.content)) {
-        return r.content.map((c) => (c.type === "text" ? c.text : "")).join("\n");
+        return r.content.map((c) => (c.type === "text" ? c.text : "")).join(
+            "\n",
+        );
     }
     return JSON.stringify(result);
 }
@@ -133,7 +161,8 @@ class NetworkCapture {
     }
 
     finalize(am: AssistantMessage): NetworkLog {
-        const isError = am.stopReason === "error" || am.stopReason === "aborted";
+        const isError = am.stopReason === "error" ||
+            am.stopReason === "aborted";
         return {
             id: this.id,
             timestamp: this.start,
@@ -162,7 +191,11 @@ function buildPreamble(
     api: string,
     provider: string,
     model: string,
-): { systemPrompt: string; preMessages: AgentMessage[]; postMessages: AgentMessage[] } {
+): {
+    systemPrompt: string;
+    preMessages: AgentMessage[];
+    postMessages: AgentMessage[];
+} {
     const histIdx = prompts.findIndex((p) => p.role === "history");
     const pre = histIdx < 0 ? prompts : prompts.slice(0, histIdx);
     const post = histIdx < 0 ? [] : prompts.slice(histIdx + 1);
@@ -172,7 +205,11 @@ function buildPreamble(
         .join("\n\n");
     const blockToMessage = (p: PromptBlock): Message =>
         p.role === "user"
-            ? { role: "user", content: [text(p.content)], timestamp: Date.now() }
+            ? {
+                role: "user",
+                content: [text(p.content)],
+                timestamp: Date.now(),
+            }
             : {
                 role: "assistant",
                 content: [text(p.content)],
@@ -184,9 +221,15 @@ function buildPreamble(
                 timestamp: Date.now(),
             };
     const example = (ps: PromptBlock[]) =>
-        ps.filter((p) => p.enabled && (p.role === "user" || p.role === "assistant"))
+        ps.filter((p) =>
+            p.enabled && (p.role === "user" || p.role === "assistant")
+        )
             .map(blockToMessage) as unknown as AgentMessage[];
-    return { systemPrompt, preMessages: example(pre), postMessages: example(post) };
+    return {
+        systemPrompt,
+        preMessages: example(pre),
+        postMessages: example(post),
+    };
 }
 
 export async function runChat(
@@ -196,20 +239,41 @@ export async function runChat(
 ): Promise<void> {
     const conv = getConversation(req.conversationId);
     if (!conv) {
-        emit({ type: "error", message: `Conversation not found: ${req.conversationId}` });
+        emit({
+            type: "error",
+            message: `Conversation not found: ${req.conversationId}`,
+        });
         return;
     }
     const settings = getSettings();
-    let providerId = conv.providerId ?? settings.activeProviderId;
+
+    // Resolve the assistant owning this conversation (or the active one) and
+    // build its prompt preamble: system blocks -> systemPrompt, user/assistant
+    // blocks -> example messages spliced around the history insertion marker.
+    const assistant = (conv.assistantId ?? settings.activeAssistantId)
+        ? getAssistant(conv.assistantId ?? settings.activeAssistantId!)
+        : null;
+
+    // Provider + model resolution (Cherry Studio-style): a per-conversation
+    // override wins, else the assistant's binding, else the first enabled
+    // provider + its first model. An assistant with no model bound is an
+    // error - no silent fallback to an arbitrary model.
+    let providerId = conv.providerId ?? assistant?.providerId ?? null;
+    let modelId = conv.model ?? assistant?.modelId ?? null;
     if (!providerId) {
         const enabled = listProviders().filter((p) => p.enabled);
         providerId = enabled[0]?.id ?? null;
+        modelId = enabled[0]?.models[0]?.id ?? null;
     }
-    if (!providerId) {
-        emit({ type: "error", message: "No provider configured. Add one in Settings." });
+    if (!providerId || !modelId) {
+        emit({
+            type: "error",
+            message: assistant?.providerId
+                ? `The assistant's provider is no longer available. Pick a model in Settings.`
+                : "No provider/model configured. Bind one to the assistant in Settings.",
+        });
         return;
     }
-    const modelId = conv.model ?? settings.activeModel;
     const { models, model } = resolveProviderModel(providerId, modelId);
     const api = model.api as string;
     const provider = model.provider as string;
@@ -223,14 +287,10 @@ export async function runChat(
         createdAt: Date.now(),
     };
     addMessage(conv.id, userMsg);
-    if (conv.title === NEW_CHAT_TITLE) updateConversationTitle(conv.id, req.text.slice(0, 48));
+    if (conv.title === NEW_CHAT_TITLE) {
+        updateConversationTitle(conv.id, req.text.slice(0, 48));
+    }
 
-    // Resolve the assistant owning this conversation (or the active one) and
-    // build its prompt preamble: system blocks -> systemPrompt, user/assistant
-    // blocks -> example messages spliced around the history insertion marker.
-    const assistant = (conv.assistantId ?? settings.activeAssistantId)
-        ? getAssistant(conv.assistantId ?? settings.activeAssistantId!)
-        : null;
     const { systemPrompt, preMessages, postMessages } = buildPreamble(
         assistant?.prompts ?? [],
         api,
@@ -252,7 +312,10 @@ export async function runChat(
                 model: m.id,
                 provider: m.provider,
                 systemPrompt: ctx.systemPrompt ?? null,
-                tools: (ctx.tools ?? []).map((t) => ({ name: t.name, description: t.description })),
+                tools: (ctx.tools ?? []).map((t) => ({
+                    name: t.name,
+                    description: t.description,
+                })),
                 messages: ctx.messages,
             },
         });
@@ -365,7 +428,9 @@ export async function runChat(
         role: "assistant",
         text: accText,
         reasoning: accReasoning || undefined,
-        toolCalls: tools.size ? [...tools.values()].map((t) => t.entry) : undefined,
+        toolCalls: tools.size
+            ? [...tools.values()].map((t) => t.entry)
+            : undefined,
         model: assistantModel ?? modelIdResolved,
         usage,
         durationMs: Date.now() - startedAt,

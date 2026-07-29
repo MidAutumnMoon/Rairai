@@ -7,26 +7,43 @@
 
 import { DatabaseSync } from "node:sqlite";
 import {
-    AssistantSchema,
-    AssistantSummarySchema,
-    ConversationSummarySchema,
-    ProviderSchema,
-    SettingsPatchSchema,
-    SettingsSchema,
     type Assistant,
     type AssistantInput,
+    AssistantSchema,
     type AssistantSummary,
+    AssistantSummarySchema,
     type Conversation,
-    type ConversationSummary,
     type ConversationCreate,
+    type ConversationSummary,
+    ConversationSummarySchema,
     type MessagePage,
+    type Model,
+    ModelSchema,
     type Provider,
     type ProviderInput,
+    ProviderSchema,
     type Settings,
     type SettingsPatch,
+    SettingsPatchSchema,
+    SettingsSchema,
 } from "../shared/api.ts";
-import { ChatMessageSchema, type ChatMessage } from "../shared/chat-events.ts";
+import { type ChatMessage, ChatMessageSchema } from "../shared/chat-events.ts";
 import { uid } from "../shared/id.ts";
+
+/** Derive a model's maker/group from its id: the segment before `/`, else the
+ *  first `-`-segment (Cherry Studio's derivation). Used when fetching models
+ *  from an API and when migrating legacy `string[]` model lists. */
+export function groupOf(modelId: string): string {
+    const slash = modelId.split("/");
+    if (slash.length > 1) return slash[0];
+    const dash = modelId.split("-");
+    return dash[0] || "other";
+}
+
+/** Build a Model from a bare id (name == id, group derived). */
+export function toModel(id: string): Model {
+    return ModelSchema.parse({ id, name: id, group: groupOf(id) });
+}
 
 const DATA_DIR = Deno.env.get("RAIRAI_DATA_DIR") ?? "./data";
 const DB_PATH = `${DATA_DIR}/rairai.db`;
@@ -64,7 +81,9 @@ function run(sql: string, ...params: Bind[]): { changes: number } {
 }
 
 function hasColumn(d: DatabaseSync, table: string, col: string): boolean {
-    const rows = d.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+    const rows = d.prepare(`PRAGMA table_info(${table})`).all() as {
+        name: string;
+    }[];
     return rows.some((r) => r.name === col);
 }
 
@@ -126,6 +145,45 @@ function migrate(d: DatabaseSync): void {
     if (!hasColumn(d, "conversations", "assistant_id")) {
         d.exec("ALTER TABLE conversations ADD COLUMN assistant_id TEXT");
     }
+    // Provider/model binding moved onto the assistant. Pre-binding DBs lack
+    // these columns; add them idempotently (nullable - no silent fallback).
+    if (!hasColumn(d, "assistants", "provider_id")) {
+        d.exec("ALTER TABLE assistants ADD COLUMN provider_id TEXT");
+    }
+    if (!hasColumn(d, "assistants", "model_id")) {
+        d.exec("ALTER TABLE assistants ADD COLUMN model_id TEXT");
+    }
+    // One-time: migrate legacy `string[]` model lists on providers to the
+    // richer `Model[]` shape ({ id, name, group }). Idempotent - rows already
+    // in the new shape (objects with an `id`) are left as-is.
+    const providers = d.prepare("SELECT id, models FROM providers").all() as {
+        id: string;
+        models: string;
+    }[];
+    for (const p of providers) {
+        let parsed: unknown;
+        try {
+            parsed = JSON.parse(p.models);
+        } catch {
+            continue;
+        }
+        if (!Array.isArray(parsed)) continue;
+        const needsMigrate = parsed.some(
+            (m) => typeof m === "string",
+        );
+        if (!needsMigrate) continue;
+        const migrated = (parsed as unknown[])
+            .map((m) => (typeof m === "string" ? toModel(m) : m))
+            .filter((m) => m && typeof m === "object");
+        d.prepare("UPDATE providers SET models = ? WHERE id = ?").run(
+            JSON.stringify(migrated),
+            p.id,
+        );
+    }
+    // Drop the now-unused global active provider/model settings rows.
+    d.exec(
+        "DELETE FROM settings WHERE key IN ('activeProviderId', 'activeModel')",
+    );
 }
 
 // --- Providers ---------------------------------------------------------------
@@ -182,7 +240,9 @@ export function resolveProviderKey(id: string): string | null {
     );
     if (!r) return null;
     if (r.credential_source === "env") {
-        return r.credential_ref ? (Deno.env.get(r.credential_ref) ?? null) : null;
+        return r.credential_ref
+            ? (Deno.env.get(r.credential_ref) ?? null)
+            : null;
     }
     return r.credential_inline;
 }
@@ -207,7 +267,10 @@ export function createProvider(input: ProviderInput): Provider {
     return getProvider(id)!;
 }
 
-export function updateProvider(id: string, input: ProviderInput): Provider | null {
+export function updateProvider(
+    id: string,
+    input: ProviderInput,
+): Provider | null {
     const existing = queryOne<{ credential_inline: string | null }>(
         "SELECT credential_inline FROM providers WHERE id = ?",
         id,
@@ -240,24 +303,35 @@ export function deleteProvider(id: string): boolean {
     return run("DELETE FROM providers WHERE id = ?", id).changes > 0;
 }
 
+/** Replace a provider's model list (from an API fetch or manual edit). */
+export function setProviderModels(
+    id: string,
+    models: Model[],
+): Provider | null {
+    run(
+        "UPDATE providers SET models = ? WHERE id = ?",
+        JSON.stringify(models),
+        id,
+    );
+    return getProvider(id);
+}
+
 // --- Settings ----------------------------------------------------------------
 
 const DEFAULT_SETTINGS: Settings = {
     defaultStream: true,
-    activeProviderId: null,
-    activeModel: null,
     activeAssistantId: null,
 };
 
 export function getSettings(): Settings {
-    const rows = query<{ key: string; value: string }>("SELECT key, value FROM settings");
+    const rows = query<{ key: string; value: string }>(
+        "SELECT key, value FROM settings",
+    );
     const map = new Map(rows.map((r) => [r.key, r.value]));
     return SettingsSchema.parse({
         defaultStream: map.has("defaultStream")
             ? map.get("defaultStream") === "true"
             : DEFAULT_SETTINGS.defaultStream,
-        activeProviderId: map.get("activeProviderId") || null,
-        activeModel: map.get("activeModel") || null,
         activeAssistantId: map.get("activeAssistantId") || null,
     });
 }
@@ -270,10 +344,12 @@ export function updateSettings(patch: SettingsPatch): Settings {
             key,
             value,
         );
-    if (p.defaultStream !== undefined) upsert("defaultStream", p.defaultStream ? "true" : "false");
-    if (p.activeProviderId !== undefined) upsert("activeProviderId", p.activeProviderId ?? "");
-    if (p.activeModel !== undefined) upsert("activeModel", p.activeModel ?? "");
-    if (p.activeAssistantId !== undefined) upsert("activeAssistantId", p.activeAssistantId ?? "");
+    if (p.defaultStream !== undefined) {
+        upsert("defaultStream", p.defaultStream ? "true" : "false");
+    }
+    if (p.activeAssistantId !== undefined) {
+        upsert("activeAssistantId", p.activeAssistantId ?? "");
+    }
     return getSettings();
 }
 
@@ -285,6 +361,8 @@ interface AssistantRow {
     emoji: string;
     description: string;
     prompts: string;
+    provider_id: string | null;
+    model_id: string | null;
     created_at: number;
     updated_at: number;
 }
@@ -296,6 +374,8 @@ function rowToAssistant(r: AssistantRow): Assistant {
         emoji: r.emoji,
         description: r.description,
         prompts: JSON.parse(r.prompts),
+        providerId: r.provider_id,
+        modelId: r.model_id,
         createdAt: r.created_at,
         updatedAt: r.updated_at,
     });
@@ -307,18 +387,25 @@ function rowToAssistantSummary(r: AssistantRow): AssistantSummary {
         name: r.name,
         emoji: r.emoji,
         description: r.description,
+        providerId: r.provider_id,
+        modelId: r.model_id,
         createdAt: r.created_at,
         updatedAt: r.updated_at,
     });
 }
 
 export function listAssistants(): AssistantSummary[] {
-    return query<AssistantRow>("SELECT * FROM assistants ORDER BY created_at ASC")
+    return query<AssistantRow>(
+        "SELECT * FROM assistants ORDER BY created_at ASC",
+    )
         .map(rowToAssistantSummary);
 }
 
 export function getAssistant(id: string): Assistant | null {
-    const r = queryOne<AssistantRow>("SELECT * FROM assistants WHERE id = ?", id);
+    const r = queryOne<AssistantRow>(
+        "SELECT * FROM assistants WHERE id = ?",
+        id,
+    );
     return r ? rowToAssistant(r) : null;
 }
 
@@ -326,28 +413,35 @@ export function createAssistant(input: AssistantInput): Assistant {
     const id = uid("asst");
     const now = Date.now();
     run(
-        `INSERT INTO assistants (id, name, emoji, description, prompts, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO assistants (id, name, emoji, description, prompts, provider_id, model_id, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         id,
         input.name,
         input.emoji,
         input.description,
         JSON.stringify(input.prompts),
+        input.providerId,
+        input.modelId,
         now,
         now,
     );
     return getAssistant(id)!;
 }
 
-export function updateAssistant(id: string, input: AssistantInput): Assistant | null {
+export function updateAssistant(
+    id: string,
+    input: AssistantInput,
+): Assistant | null {
     const now = Date.now();
     const changes = run(
-        `UPDATE assistants SET name = ?, emoji = ?, description = ?, prompts = ?, updated_at = ?
+        `UPDATE assistants SET name = ?, emoji = ?, description = ?, prompts = ?, provider_id = ?, model_id = ?, updated_at = ?
          WHERE id = ?`,
         input.name,
         input.emoji,
         input.description,
         JSON.stringify(input.prompts),
+        input.providerId,
+        input.modelId,
         now,
         id,
     ).changes;
@@ -389,7 +483,9 @@ export function listConversations(assistantId?: string): ConversationSummary[] {
             "SELECT * FROM conversations WHERE assistant_id = ? ORDER BY updated_at DESC",
             assistantId,
         )
-        : query<ConvRow>("SELECT * FROM conversations ORDER BY updated_at DESC");
+        : query<ConvRow>(
+            "SELECT * FROM conversations ORDER BY updated_at DESC",
+        );
     const counts = query<{ conversation_id: string; n: number }>(
         "SELECT conversation_id, COUNT(*) AS n FROM messages GROUP BY conversation_id",
     );
@@ -445,7 +541,10 @@ const PAGE_SIZE = 30;
 
 /** Conversation meta + the recent message tail (NOT all messages). Used by the
  *  REST endpoint so opening a long conversation doesn't transfer everything. */
-export function getConversationPage(id: string, limit = PAGE_SIZE): Conversation | null {
+export function getConversationPage(
+    id: string,
+    limit = PAGE_SIZE,
+): Conversation | null {
     const r = queryOne<ConvRow>("SELECT * FROM conversations WHERE id = ?", id);
     if (!r) return null;
     const total = queryOne<{ n: number }>(
@@ -511,7 +610,12 @@ export function createConversation(input: ConversationCreate): Conversation {
 }
 
 export function updateConversationTitle(id: string, title: string): void {
-    run("UPDATE conversations SET title = ?, updated_at = ? WHERE id = ?", title, Date.now(), id);
+    run(
+        "UPDATE conversations SET title = ?, updated_at = ? WHERE id = ?",
+        title,
+        Date.now(),
+        id,
+    );
 }
 
 export function deleteConversation(id: string): boolean {
@@ -566,10 +670,16 @@ export function addMessage(conversationId: string, msg: ChatMessage): void {
 // --- Bootstrap ---------------------------------------------------------------
 
 /** On an empty provider table, seed one from env (if present) or a faux dev
- *  provider, so the app is usable on first run. */
-export function ensureBootstrapProvider(): void {
-    const count = queryOne<{ n: number }>("SELECT COUNT(*) AS n FROM providers")!;
-    if (count.n > 0) return;
+ *  provider, so the app is usable on first run. Returns the created provider's
+ *  id + first model, or null if a provider already existed. */
+export function ensureBootstrapProvider(): {
+    providerId: string;
+    modelId: string;
+} | null {
+    const count = queryOne<{ n: number }>(
+        "SELECT COUNT(*) AS n FROM providers",
+    )!;
+    if (count.n > 0) return null;
     const baseUrl = Deno.env.get("OPENAI_BASE_URL");
     const apiKey = Deno.env.get("OPENAI_API_KEY");
     const created = (baseUrl && apiKey)
@@ -577,7 +687,7 @@ export function ensureBootstrapProvider(): void {
             name: "OpenAI (from env)",
             apiType: "openai-completions",
             baseUrl,
-            models: [Deno.env.get("OPENAI_MODEL") ?? "gpt-4o-mini"],
+            models: [toModel(Deno.env.get("OPENAI_MODEL") ?? "gpt-4o-mini")],
             credential: { source: "env", ref: "OPENAI_API_KEY" },
             enabled: true,
         })
@@ -585,23 +695,27 @@ export function ensureBootstrapProvider(): void {
             name: "Faux (dev, no key)",
             apiType: "faux",
             baseUrl: "http://localhost:0",
-            models: ["faux-1"],
+            models: [toModel("faux-1")],
             credential: { source: "inline" },
             enabled: true,
         });
-    // Make the bootstrap provider active so chat works zero-config.
-    if (getSettings().activeProviderId === null) {
-        updateSettings({ activeProviderId: created.id, activeModel: created.models[0] ?? null });
-    }
+    return { providerId: created.id, modelId: created.models[0]?.id ?? "" };
 }
 
 /** Seed a default assistant on first run and make it active. Also adopts any
- *  conversations from a pre-assistant DB (assistant_id IS NULL) into it. */
-export function ensureBootstrapAssistant(): void {
-    const count = queryOne<{ n: number }>("SELECT COUNT(*) AS n FROM assistants")!;
+ *  conversations from a pre-assistant DB (assistant_id IS NULL) into it, and
+ *  binds the bootstrap provider+model so chat works zero-config. */
+export function ensureBootstrapAssistant(
+    bootstrap?: { providerId: string; modelId: string } | null,
+): void {
+    const count = queryOne<{ n: number }>(
+        "SELECT COUNT(*) AS n FROM assistants",
+    )!;
     let defaultId: string;
     if (count.n > 0) {
-        defaultId = queryOne<{ id: string }>("SELECT id FROM assistants ORDER BY created_at ASC LIMIT 1")!
+        defaultId = queryOne<{ id: string }>(
+            "SELECT id FROM assistants ORDER BY created_at ASC LIMIT 1",
+        )!
             .id;
     } else {
         const created = createAssistant({
@@ -609,9 +723,23 @@ export function ensureBootstrapAssistant(): void {
             emoji: "✨",
             description: "The default assistant.",
             prompts: [
-                { id: uid("blk"), role: "system", name: "Main", content: "You are a helpful assistant.", enabled: true },
-                { id: uid("blk"), role: "history", name: "History", content: "", enabled: true },
+                {
+                    id: uid("blk"),
+                    role: "system",
+                    name: "Main",
+                    content: "You are a helpful assistant.",
+                    enabled: true,
+                },
+                {
+                    id: uid("blk"),
+                    role: "history",
+                    name: "History",
+                    content: "",
+                    enabled: true,
+                },
             ],
+            providerId: bootstrap?.providerId ?? null,
+            modelId: bootstrap?.modelId ?? null,
         });
         defaultId = created.id;
     }
@@ -619,5 +747,8 @@ export function ensureBootstrapAssistant(): void {
         updateSettings({ activeAssistantId: defaultId });
     }
     // Adopt orphaned conversations (pre-assistant DBs) into the default assistant.
-    run("UPDATE conversations SET assistant_id = ? WHERE assistant_id IS NULL", defaultId);
+    run(
+        "UPDATE conversations SET assistant_id = ? WHERE assistant_id IS NULL",
+        defaultId,
+    );
 }

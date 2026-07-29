@@ -37,7 +37,14 @@
         "indentWidth": 4,
         "useTabs": false,
         "jsx.multiLineParens": "never",
-        "singleBodyPosition": "sameLine"
+        "singleBodyPosition": "sameLine",
+        "exclude": [
+            "reference/",
+            ".agents/",
+            ".zed/",
+            "node_modules/",
+            "dist/"
+        ]
     },
     "lint": {
         "rules": {}

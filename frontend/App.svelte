@@ -1,42 +1,46 @@
 <script lang="ts">
-    import { onMount } from "svelte";
-    import { Tooltip } from "bits-ui";
-    import { chat } from "./lib/chat.svelte";
-    import Sidebar from "./components/Sidebar.svelte";
-    import ChatStream from "./components/ChatStream.svelte";
-    import ChatInput from "./components/ChatInput.svelte";
-    import NetworkInspector from "./components/NetworkInspector.svelte";
-    import ManageAssistants from "./components/ManageAssistants.svelte";
-    import Settings from "./components/Settings.svelte";
-    import AssistantEditor from "./components/AssistantEditor.svelte";
-    import Icon from "./components/ui/Icon.svelte";
-    import UITooltip from "./components/ui/Tooltip.svelte";
-    import "./app.css";
+import { onMount } from "svelte";
+import { Tooltip } from "bits-ui";
+import { chat } from "./lib/chat.svelte";
+import Sidebar from "./components/Sidebar.svelte";
+import ChatStream from "./components/ChatStream.svelte";
+import ChatInput from "./components/ChatInput.svelte";
+import NetworkInspector from "./components/NetworkInspector.svelte";
+import ManageAssistants from "./components/ManageAssistants.svelte";
+import Settings from "./components/Settings.svelte";
+import Icon from "./components/ui/Icon.svelte";
+import UITooltip from "./components/ui/Tooltip.svelte";
+import "./app.css";
 
-    // One sidebar at a time: chat sidebar (chat/assistant views) or settings
-    // nav (settings view). The settings nav REPLACES the chat sidebar - no
-    // double-sidebar. Overlays: inspector drawer + manage-assistants drawer.
-    let view = $state<"chat" | "settings" | "assistant">("chat");
-    let editingAssistantId = $state<string | null>(null);
-    let inspectorOpen = $state(false);
-    let manageOpen = $state(false);
-    let settingsTab = $state<"providers" | "general" | "data">("providers");
+// One sidebar at a time: chat sidebar (chat view) or settings nav (settings
+// view). The settings nav REPLACES the chat sidebar - no double-sidebar.
+// Overlays: inspector drawer + manage-assistants drawer. Editing an
+// assistant is now a tab *inside* Settings, not a standalone view.
+let view = $state<"chat" | "settings">("chat");
+let inspectorOpen = $state(false);
+let manageOpen = $state(false);
+let settingsTab = $state<"providers" | "assistants" | "general" | "data">(
+    "providers",
+);
+// When set, the Assistants tab opens this assistant's editor directly.
+let focusAssistantId = $state<string | null>(null);
 
-    onMount(() => {
-        chat.init();
-    });
+onMount(() => {
+    chat.init();
+});
 
-    function navigateToChat() {
-        view = "chat";
-    }
-    function openSettings() {
-        view = "settings";
-    }
-    function openAssistantEditor(id: string | null) {
-        editingAssistantId = id;
-        view = "assistant";
-        manageOpen = false;
-    }
+function navigateToChat() {
+    view = "chat";
+}
+function openSettings() {
+    view = "settings";
+}
+function openAssistantEditor(id: string | null) {
+    focusAssistantId = id;
+    settingsTab = "assistants";
+    view = "settings";
+    manageOpen = false;
+}
 </script>
 
 <Tooltip.Provider>
@@ -54,6 +58,16 @@
                         onclick={() => (settingsTab = "providers")}
                     >
                         Providers
+                    </button>
+                    <button
+                        class="settings-nav-item"
+                        class:active={settingsTab === "assistants"}
+                        onclick={() => {
+                            focusAssistantId = null;
+                            settingsTab = "assistants";
+                        }}
+                    >
+                        Assistants
                     </button>
                     <button
                         class="settings-nav-item"
@@ -81,12 +95,7 @@
 
         <main class="main-pane">
             {#if view === "settings"}
-                <Settings tab={settingsTab} />
-            {:else if view === "assistant"}
-                <AssistantEditor
-                    assistantId={editingAssistantId}
-                    onBack={() => (view = "chat")}
-                />
+                <Settings tab={settingsTab} {focusAssistantId} />
             {:else}
                 <div class="chat-pane">
                     <header class="pane-head">

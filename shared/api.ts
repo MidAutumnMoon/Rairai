@@ -24,6 +24,23 @@ export const CredentialSchema = z.object({
     ref: z.string().optional(),
 });
 
+/** A model served by a provider. `id` is sent verbatim as the request `model`;
+ *  `group` is the maker (derived from the id: segment before `/`, else the
+ *  first `-`-segment) for categorization in the UI. */
+export const ModelSchema = z.object({
+    id: z.string(),
+    name: z.string(),
+    group: z.string(),
+});
+export type Model = z.infer<typeof ModelSchema>;
+
+/** The OpenAI-compatible `/models` response shape we parse when fetching. */
+export const ModelsFetchResultSchema = z.object({
+    providerId: z.string(),
+    models: z.array(ModelSchema),
+});
+export type ModelsFetchResult = z.infer<typeof ModelsFetchResultSchema>;
+
 /** A provider as seen over the wire. The actual secret is NEVER included. */
 export const ProviderSchema = z.object({
     id: z.string(),
@@ -31,8 +48,10 @@ export const ProviderSchema = z.object({
     apiType: ApiTypeSchema,
     /** Must include `/v1` for the openai-* types (the SDK appends the path). */
     baseUrl: z.string(),
-    /** Model ids this provider serves (sent verbatim as the request `model`). */
-    models: z.array(z.string()),
+    /** Models this provider serves. Each carries an id (sent verbatim as the
+     *  request `model`), a display name, and a group (maker, derived from the
+     *  id: the segment before `/`, else the first `-`-segment). */
+    models: z.array(ModelSchema),
     credential: CredentialSchema,
     enabled: z.boolean(),
     createdAt: z.number(),
@@ -41,7 +60,10 @@ export type Provider = z.infer<typeof ProviderSchema>;
 
 /** Body for create/update a provider. `key` is the actual secret, accepted only
  *  when credential.source === "inline"; it is never returned on read. */
-export const ProviderInputSchema = ProviderSchema.omit({ id: true, createdAt: true }).extend({
+export const ProviderInputSchema = ProviderSchema.omit({
+    id: true,
+    createdAt: true,
+}).extend({
     key: z.string().optional(),
 });
 export type ProviderInput = z.infer<typeof ProviderInputSchema>;
@@ -49,7 +71,12 @@ export type ProviderInput = z.infer<typeof ProviderInputSchema>;
 /** Role of a prompt block in an assistant's prompt list. `history` is a marker
  *  - not sent to the model - that says where the conversation history is
  *  spliced in. Blocks before it are the preamble; blocks after are appended. */
-export const PromptRoleSchema = z.enum(["system", "user", "assistant", "history"]);
+export const PromptRoleSchema = z.enum([
+    "system",
+    "user",
+    "assistant",
+    "history",
+]);
 export type PromptRole = z.infer<typeof PromptRoleSchema>;
 
 export const PromptBlockSchema = z.object({
@@ -71,6 +98,11 @@ export const AssistantSchema = z.object({
     emoji: z.string(),
     description: z.string(),
     prompts: z.array(PromptBlockSchema),
+    /** The provider + model this assistant uses. Both nullable (Cherry
+     *  Studio-style): an assistant with no model bound won't run until one is
+     *  picked - no silent fallback. Resolution lives in runChat. */
+    providerId: z.string().nullable(),
+    modelId: z.string().nullable(),
     createdAt: z.number(),
     updatedAt: z.number(),
 });
@@ -88,8 +120,6 @@ export type AssistantInput = z.infer<typeof AssistantInputSchema>;
 
 export const SettingsSchema = z.object({
     defaultStream: z.boolean(),
-    activeProviderId: z.string().nullable(),
-    activeModel: z.string().nullable(),
     activeAssistantId: z.string().nullable(),
 });
 export type Settings = z.infer<typeof SettingsSchema>;
