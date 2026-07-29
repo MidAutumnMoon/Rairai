@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A local-first LLM chat app. Deno backend (Hono), Svelte 5 frontend. Backend owns the agent loop (pi-agent-core/pi-ai) and streams events over SSE; frontend is a thin consumer. SQLite for persistence. `shared/` is the contract between both sides.
+A local-first LLM chat app. Deno backend (Hono), Svelte 5 frontend. Backend owns the agent loop (pi-agent-core/pi-ai) and streams events over SSE; frontend is a thin consumer; zod sits between data boundaries. SQLite for persistence. `shared/` is the contract between both sides.
 
 ## Architecture
 
