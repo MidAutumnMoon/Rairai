@@ -1341,6 +1341,121 @@
         margin-inline: auto;
     }
 
+    /* ---- settings split (sub-nav + detail; for Providers/Assistants tabs) ----
+     * The sub-nav and detail share one visual surface - NO border between
+     * them. The only visible edge is the main sidebar border. The detail pane
+     * scrolls; the sub-nav is a fixed-width list of selectable items. */
+    .settings-split {
+        flex: 1;
+        min-width: 0;
+        min-height: 0;
+        display: flex;
+        overflow: hidden;
+    }
+    .sub-nav {
+        flex: none;
+        width: 200px;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        padding: 0.5rem 0;
+        gap: 0.05rem;
+    }
+    .sub-nav-head {
+        flex: none;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.3rem 0.7rem 0.5rem;
+    }
+    .sub-nav-head .count {
+        font-size: 11px;
+        color: var(--text-faint);
+        font-weight: 600;
+    }
+    .sub-nav-list {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        padding: 0 0.3rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.05rem;
+    }
+    .sub-nav-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        width: 100%;
+        text-align: start;
+        padding: 0.45rem 0.55rem;
+        border-radius: var(--r);
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text-muted);
+        transition: background var(--transition), color var(--transition);
+        min-width: 0;
+    }
+    .sub-nav-item:hover {
+        background: var(--surface-3);
+        color: var(--text);
+    }
+    .sub-nav-item.active {
+        background: var(--primary-soft);
+        color: var(--primary);
+        font-weight: 600;
+    }
+    .sub-nav-item-name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        min-width: 0;
+    }
+    .sub-nav-item .badge {
+        flex-shrink: 0;
+    }
+    .sub-nav-add {
+        flex: none;
+        margin: 0.3rem 0.3rem 0;
+    }
+    .sub-detail {
+        flex: 1;
+        min-width: 0;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+    }
+    .sub-detail-head {
+        flex: none;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        padding: 0.55rem 0.85rem;
+        min-height: 48px;
+    }
+    .sub-detail-title {
+        font-weight: 600;
+        font-size: 15px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        min-width: 0;
+    }
+    .sub-detail-body {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        padding: 0.5rem 1.2rem 3rem;
+    }
+    .sub-detail-inner {
+        max-width: 640px;
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+    }
+
     /* ---- bits-ui Select ---- */
     .select-trigger {
         display: flex;
@@ -1501,6 +1616,34 @@
     .grow {
         margin-inline-start: auto;
     }
+    .head-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+    .field-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.8rem;
+    }
+    .field-group-head {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .field-group-title {
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--text-faint);
+        margin: 0;
+    }
+    .asst-emoji {
+        font-size: 16px;
+        line-height: 1;
+        flex-shrink: 0;
+    }
     .form-card {
         background: var(--surface-2);
         border: 1px solid var(--border);
@@ -1533,25 +1676,6 @@
         gap: 0.3rem;
         margin-top: 0.4rem;
     }
-    .prov {
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: var(--r-md);
-        padding: 0.8rem 0.9rem;
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-    }
-    .prov-top {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        flex-wrap: wrap;
-    }
-    .pname {
-        font-weight: 600;
-        font-size: 14px;
-    }
     .badge {
         font-size: 11px;
         font-family: var(--mono);
@@ -1573,50 +1697,6 @@
     .tag.dim {
         color: var(--text-faint);
         background: var(--surface-2);
-    }
-    .prov-meta {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.8rem;
-        font-size: 12px;
-        color: var(--text-muted);
-    }
-    .prov-meta .kv b {
-        font-weight: 600;
-        color: var(--text-faint);
-    }
-    .prov-meta .models {
-        color: var(--text-muted);
-    }
-    .prov-expand {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 22px;
-        height: 22px;
-        border-radius: var(--r-sm);
-        color: var(--text-faint);
-        transition: background var(--transition), color var(--transition);
-    }
-    .prov-expand:hover {
-        background: var(--surface-3);
-        color: var(--text);
-    }
-    .prov-expand :global(.rotated) {
-        transform: rotate(90deg);
-    }
-    .prov-models {
-        display: flex;
-        flex-direction: column;
-        gap: 0.4rem;
-        padding: 0.5rem 0 0.2rem 1.6rem;
-        border-top: 1px solid var(--border);
-        margin-top: 0.2rem;
-    }
-    .prov-models-head {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
     }
     .empty-sm {
         font-size: 12px;
@@ -1665,51 +1745,6 @@
         white-space: nowrap;
         flex: 1;
         min-width: 0;
-    }
-    .asst-row {
-        width: 100%;
-        text-align: start;
-        padding: 0.6rem 0.7rem;
-        cursor: pointer;
-    }
-    .asst-row .emoji {
-        font-size: 18px;
-    }
-    .asst-model {
-        font-size: 11px;
-        color: var(--text-muted);
-        font-family: var(--mono);
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-    .asst-edit {
-        color: var(--text-faint);
-        flex-shrink: 0;
-    }
-    .asst-row:hover .asst-edit {
-        color: var(--text);
-    }
-    .prov-actions {
-        display: flex;
-        gap: 0.4rem;
-        flex-wrap: wrap;
-    }
-    .test-result {
-        font-size: 12px;
-        padding: 0.35rem 0.6rem;
-        border-radius: var(--r-sm);
-    }
-    .test-result.ok {
-        color: var(--ok);
-        background: var(--ok-soft);
-    }
-    .test-result.err {
-        color: var(--danger);
-        background: var(--danger-soft);
-    }
-    .test-result.testing {
-        color: var(--text-muted);
     }
     .section {
         display: flex;

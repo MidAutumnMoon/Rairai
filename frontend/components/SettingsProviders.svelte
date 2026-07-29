@@ -21,16 +21,17 @@ import Select from "./ui/Select.svelte";
 let providers = $state<Provider[]>([]);
 let loading = $state(false);
 let error = $state<string | null>(null);
-// keyed by provider id
+// The selected provider id; `null` = the "New provider" form.
+let selectedId = $state<string | null | undefined>(undefined);
 let tests = $state<
     Record<string, "testing" | { ok: boolean; error?: string }>
 >({});
-// which provider's model panel is expanded
-let expanded = $state<Record<string, boolean>>({});
-// fetch-models in-flight state, keyed by provider id
-let fetching = $state<Record<string, boolean>>({});
+let fetching = $state(false);
 
-// --- provider form ---
+const selected = $derived(providers.find((p) => p.id === selectedId) ?? null);
+const isNew = $derived(selectedId === null);
+
+// --- provider form (create/edit connection settings) ---
 interface FormState {
     name: string;
     apiType: ApiType;
@@ -51,8 +52,17 @@ function blankForm(): FormState {
         enabled: true,
     };
 }
-let formOpen = $state(false);
-let editingId = $state<string | null>(null);
+function formFromProvider(p: Provider): FormState {
+    return {
+        name: p.name,
+        apiType: p.apiType === "faux" ? "openai-completions" : p.apiType,
+        baseUrl: p.baseUrl,
+        credSource: p.credential.source,
+        credRef: p.credential.ref ?? "",
+        key: "",
+        enabled: p.enabled,
+    };
+}
 let form = $state<FormState>(blankForm());
 let formSaving = $state(false);
 let formError = $state<string | null>(null);
@@ -74,8 +84,8 @@ type TestView =
     | { state: "ok" }
     | { state: "err"; error: string }
     | null;
-function testView(p: Provider): TestView {
-    const t = tests[p.id];
+function testView(id: string): TestView {
+    const t = tests[id];
     if (!t) return null;
     if (t === "testing") return { state: "testing" };
     return t.ok
@@ -104,6 +114,12 @@ async function load() {
     error = null;
     try {
         providers = await listProviders();
+        if (selectedId && !providers.some((p) => p.id === selectedId)) {
+            selectedId = providers[0]?.id ?? null;
+        } else if (selectedId === undefined && providers.length) {
+            selectedId = providers[0].id;
+        }
+        syncForm();
     } catch (e) {
         error = messageOf(e);
     } finally {
@@ -111,36 +127,31 @@ async function load() {
     }
 }
 
+// Sync the form to the selected provider whenever the selection changes.
+function syncForm() {
+    formError = null;
+    if (selected) {
+        form = formFromProvider(selected);
+    } else {
+        form = blankForm();
+    }
+}
+$effect(() => {
+    void selectedId;
+    syncForm();
+});
+
 $effect(() => {
     void load();
 });
 
-// --- provider form actions ---
+function selectProvider(id: string) {
+    selectedId = id;
+}
 function openNew() {
-    editingId = null;
-    form = blankForm();
-    formError = null;
-    formOpen = true;
+    selectedId = null;
 }
-function openEdit(p: Provider) {
-    editingId = p.id;
-    form = {
-        name: p.name,
-        apiType: p.apiType === "faux" ? "openai-completions" : p.apiType,
-        baseUrl: p.baseUrl,
-        credSource: p.credential.source,
-        credRef: p.credential.ref ?? "",
-        key: "",
-        enabled: p.enabled,
-    };
-    formError = null;
-    formOpen = true;
-}
-function closeForm() {
-    formOpen = false;
-    editingId = null;
-    formError = null;
-}
+
 async function saveProvider() {
     formError = null;
     const name = form.name.trim();
@@ -152,14 +163,11 @@ async function saveProvider() {
         formError = "Env var name is required for env credentials.";
         return;
     }
-    if (form.credSource === "inline" && !editingId && !form.key) {
+    if (form.credSource === "inline" && !selectedId && !form.key) {
         formError = "An inline key is required when creating a new provider.";
         return;
     }
-    // On edit without a fetch, keep the existing model list.
-    const existing = editingId
-        ? providers.find((p) => p.id === editingId)
-        : null;
+    const existing = selected;
     const input: ProviderInput = {
         name,
         apiType: form.apiType,
@@ -174,10 +182,15 @@ async function saveProvider() {
 
     formSaving = true;
     try {
-        if (editingId) await updateProvider(editingId, input);
-        else await createProvider(input);
-        closeForm();
-        await load();
+        if (selected) {
+            const updated = await updateProvider(selected.id, input);
+            await load();
+            if (updated) selectedId = updated.id;
+        } else {
+            const created = await createProvider(input);
+            await load();
+            selectedId = created.id;
+        }
     } catch (e) {
         formError = messageOf(e);
     } finally {
@@ -219,18 +232,15 @@ async function removeProvider(p: Provider) {
 
 // --- model management ---
 async function fetchModels(p: Provider) {
-    fetching[p.id] = true;
+    fetching = true;
     try {
         await fetchProviderModels(p.id);
         await load();
     } catch (e) {
         error = messageOf(e);
     } finally {
-        fetching[p.id] = false;
+        fetching = false;
     }
-}
-function toggleExpand(p: Provider) {
-    expanded[p.id] = !expanded[p.id];
 }
 async function removeModel(p: Provider, modelId: string) {
     const models = p.models.filter((m) => m.id !== modelId);
@@ -250,166 +260,222 @@ async function removeModel(p: Provider, modelId: string) {
 }
 </script>
 
-<div class="settings-content">
-    <div class="toolbar">
-        <span class="count">
-            {providers.length} provider{providers.length === 1 ? "" : "s"}
-        </span>
-        <span class="grow"></span>
-        <button class="btn btn-sm btn-primary" onclick={openNew}>
+<div class="settings-split">
+    <nav class="sub-nav">
+        <div class="sub-nav-head">
+            <span class="count">
+                {providers.length} provider{providers.length === 1 ? "" : "s"}
+            </span>
+            <span class="grow"></span>
+        </div>
+        <div class="sub-nav-list">
+            {#each providers as p (p.id)}
+                <button
+                    class="sub-nav-item"
+                    class:active={selectedId === p.id}
+                    onclick={() => selectProvider(p.id)}
+                    title={p.name}
+                >
+                    <span class="sub-nav-item-name">{p.name}</span>
+                    {#if !p.enabled}
+                        <span class="tag dim">off</span>
+                    {/if}
+                </button>
+            {/each}
+        </div>
+        <button class="btn btn-sm btn-ghost sub-nav-add" onclick={openNew}>
             <Icon name="plus" size={14} /> New provider
         </button>
-    </div>
+    </nav>
 
-    {#if formOpen}
-        <div class="form-card">
-            <div class="form-head">
-                <span>{editingId ? "Edit provider" : "New provider"}</span>
-                <button class="btn btn-icon btn-sm" onclick={closeForm} aria-label="Close form">
-                    <Icon name="x" size={14} />
-                </button>
-            </div>
-
-            <div class="grid">
-                <label class="field">
-                    <span class="lbl">Name</span>
-                    <input class="input" bind:value={form.name} placeholder="My OpenAI" />
-                </label>
-                <div class="field">
-                    <span class="lbl">API type</span>
-                    <Select bind:value={form.apiType} items={apiTypeOptions} />
-                </div>
-                <label class="field wide">
-                    <span class="lbl">
-                        Base URL <span class="hint">must include /v1 for openai-*</span>
-                    </span>
-                    <input
-                        class="input"
-                        bind:value={form.baseUrl}
-                        placeholder="https://api.openai.com/v1"
-                    />
-                </label>
-                <div class="field wide">
-                    <span class="lbl">Credential source</span>
-                    <ToggleGroup.Root type="single" bind:value={form.credSource} class="seg">
-                        <ToggleGroup.Item class="seg-item" value="env">env var</ToggleGroup.Item>
-                        <ToggleGroup.Item class="seg-item" value="inline">inline key</ToggleGroup.Item>
-                    </ToggleGroup.Root>
-                    {#if form.credSource === "env"}
-                        <label class="sub">
-                            <span class="lbl">Env var name</span>
-                            <input
-                                class="input"
-                                bind:value={form.credRef}
-                                placeholder="OPENAI_API_KEY"
-                            />
-                            <span class="hint">read from the server environment (not a secret)</span>
+    <div class="sub-detail">
+        {#if loading && !providers.length}
+            <div class="sub-detail-body"><div class="sub-detail-inner"><div class="empty">Loading…</div></div></div>
+        {:else if isNew}
+            <header class="sub-detail-head">
+                <span class="sub-detail-title">New provider</span>
+            </header>
+            <div class="sub-detail-body">
+                <div class="sub-detail-inner">
+                    <div class="grid">
+                        <label class="field">
+                            <span class="lbl">Name</span>
+                            <input class="input" bind:value={form.name} placeholder="My OpenAI" />
                         </label>
-                    {:else}
-                        <label class="sub">
+                        <div class="field">
+                            <span class="lbl">API type</span>
+                            <Select bind:value={form.apiType} items={apiTypeOptions} />
+                        </div>
+                        <label class="field wide">
                             <span class="lbl">
-                                API key
-                                {#if editingId}<span class="hint">(leave blank to keep existing)</span>{/if}
+                                Base URL <span class="hint">must include /v1 for openai-*</span>
                             </span>
                             <input
                                 class="input"
-                                type="password"
-                                bind:value={form.key}
-                                placeholder={editingId ? "••••••••" : "sk-..."}
-                                autocomplete="off"
+                                bind:value={form.baseUrl}
+                                placeholder="https://api.openai.com/v1"
                             />
-                            <span class="hint">stored on the server (0600); never returned</span>
                         </label>
-                    {/if}
-                </div>
-                <label class="field check">
-                    <input type="checkbox" bind:checked={form.enabled} />
-                    <span>enabled</span>
-                </label>
-            </div>
-
-            {#if editingId}
-                <p class="note">
-                    Models are managed in the provider's panel below (Fetch from API) - not in this form.
-                </p>
-            {/if}
-
-            {#if formError}
-                <div class="err-msg">{formError}</div>
-            {/if}
-
-            <div class="form-actions">
-                <button class="btn btn-primary" onclick={saveProvider} disabled={formSaving}>
-                    {formSaving ? "Saving…" : "Save"}
-                </button>
-                <button class="btn" onclick={closeForm} disabled={formSaving}>Cancel</button>
-            </div>
-        </div>
-    {/if}
-
-    {#if loading && providers.length === 0}
-        <div class="empty">Loading…</div>
-    {:else if providers.length === 0}
-        <div class="empty">No providers configured. Click "+ New provider" to add one.</div>
-    {:else}
-        {#each providers as p (p.id)}
-            {@const tv = testView(p)}
-            <div class="prov">
-                <div class="prov-top">
-                    <button
-                        class="prov-expand"
-                        onclick={() => toggleExpand(p)}
-                        aria-label={expanded[p.id] ? "Collapse models" : "Expand models"}
-                    >
-                        <Icon name="chevron-right" size={14} class={expanded[p.id] ? "rotated" : ""} />
-                    </button>
-                    <span class="pname">{p.name}</span>
-                    <span class="badge">{p.apiType}</span>
-                    {#if !p.enabled}<span class="tag dim">disabled</span>{/if}
-                    <span class="grow"></span>
-                    <button class="btn btn-sm" onclick={() => toggleEnabled(p)}>
-                        {p.enabled ? "disable" : "enable"}
-                    </button>
-                </div>
-                <div class="prov-meta">
-                    <span class="kv"><b>models:</b> {p.models.length}</span>
-                    <span class="kv"><b>cred:</b> {credLabel(p)}</span>
-                    <span class="kv"><b>base:</b> {p.baseUrl || "-"}</span>
-                </div>
-                {#if tv}
-                    <div class="test-result {tv.state}">
-                        {#if tv.state === "testing"}
-                            testing…
-                        {:else if tv.state === "ok"}
-                            ✓ ok
-                        {:else}
-                            ✗ {tv.error}
-                        {/if}
+                        <div class="field wide">
+                            <span class="lbl">Credential source</span>
+                            <ToggleGroup.Root type="single" bind:value={form.credSource} class="seg">
+                                <ToggleGroup.Item class="seg-item" value="env">env var</ToggleGroup.Item>
+                                <ToggleGroup.Item class="seg-item" value="inline">inline key</ToggleGroup.Item>
+                            </ToggleGroup.Root>
+                            {#if form.credSource === "env"}
+                                <label class="sub">
+                                    <span class="lbl">Env var name</span>
+                                    <input
+                                        class="input"
+                                        bind:value={form.credRef}
+                                        placeholder="OPENAI_API_KEY"
+                                    />
+                                    <span class="hint">read from the server environment (not a secret)</span>
+                                </label>
+                            {:else}
+                                <label class="sub">
+                                    <span class="lbl">API key</span>
+                                    <input
+                                        class="input"
+                                        type="password"
+                                        bind:value={form.key}
+                                        placeholder="sk-..."
+                                        autocomplete="off"
+                                    />
+                                    <span class="hint">stored on the server (0600); never returned</span>
+                                </label>
+                            {/if}
+                        </div>
+                        <label class="field check">
+                            <input type="checkbox" bind:checked={form.enabled} />
+                            <span>enabled</span>
+                        </label>
                     </div>
-                {/if}
+                    <p class="note">After saving, use "Fetch from API" in the model list to pull available models.</p>
 
-                {#if expanded[p.id]}
-                    <div class="prov-models">
-                        <div class="prov-models-head">
-                            <span class="lbl">Models</span>
+                    {#if formError}
+                        <div class="err-msg">{formError}</div>
+                    {/if}
+
+                    <div class="form-actions">
+                        <button class="btn btn-primary" onclick={saveProvider} disabled={formSaving}>
+                            {formSaving ? "Creating…" : "Create provider"}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        {:else if selected}
+            <header class="sub-detail-head">
+                <span class="sub-detail-title">{selected.name}</span>
+                <div class="head-actions">
+                    <span class="badge">{selected.apiType}</span>
+                    {#if !selected.enabled}<span class="tag dim">disabled</span>{/if}
+                    <button class="btn btn-sm" onclick={() => toggleEnabled(selected)}>
+                        {selected.enabled ? "Disable" : "Enable"}
+                    </button>
+                    <button class="btn btn-sm" onclick={() => testP(selected)}>Test</button>
+                    <button class="btn btn-sm btn-danger" onclick={() => removeProvider(selected)}>
+                        Delete
+                    </button>
+                </div>
+            </header>
+            <div class="sub-detail-body">
+                <div class="sub-detail-inner">
+                    {#if selected.apiType !== "faux"}
+                        <section class="field-group">
+                            <h3 class="field-group-title">Connection</h3>
+                            <div class="grid">
+                                <label class="field">
+                                    <span class="lbl">Name</span>
+                                    <input class="input" bind:value={form.name} placeholder="My OpenAI" />
+                                </label>
+                                <div class="field">
+                                    <span class="lbl">API type</span>
+                                    <Select bind:value={form.apiType} items={apiTypeOptions} />
+                                </div>
+                                <label class="field wide">
+                                    <span class="lbl">
+                                        Base URL <span class="hint">must include /v1 for openai-*</span>
+                                    </span>
+                                    <input
+                                        class="input"
+                                        bind:value={form.baseUrl}
+                                        placeholder="https://api.openai.com/v1"
+                                    />
+                                </label>
+                                <div class="field wide">
+                                    <span class="lbl">Credential source</span>
+                                    <ToggleGroup.Root type="single" bind:value={form.credSource} class="seg">
+                                        <ToggleGroup.Item class="seg-item" value="env">env var</ToggleGroup.Item>
+                                        <ToggleGroup.Item class="seg-item" value="inline">inline key</ToggleGroup.Item>
+                                    </ToggleGroup.Root>
+                                    {#if form.credSource === "env"}
+                                        <label class="sub">
+                                            <span class="lbl">Env var name</span>
+                                            <input
+                                                class="input"
+                                                bind:value={form.credRef}
+                                                placeholder="OPENAI_API_KEY"
+                                            />
+                                            <span class="hint">read from the server environment (not a secret)</span>
+                                        </label>
+                                    {:else}
+                                        <label class="sub">
+                                            <span class="lbl">
+                                                API key
+                                                <span class="hint">(leave blank to keep existing)</span>
+                                            </span>
+                                            <input
+                                                class="input"
+                                                type="password"
+                                                bind:value={form.key}
+                                                placeholder="••••••••"
+                                                autocomplete="off"
+                                            />
+                                            <span class="hint">stored on the server (0600); never returned</span>
+                                        </label>
+                                    {/if}
+                                </div>
+                                <label class="field check">
+                                    <input type="checkbox" bind:checked={form.enabled} />
+                                    <span>enabled</span>
+                                </label>
+                            </div>
+                            {#if formError}
+                                <div class="err-msg">{formError}</div>
+                            {/if}
+                            <div class="form-actions">
+                                <button class="btn btn-primary" onclick={saveProvider} disabled={formSaving}>
+                                    {formSaving ? "Saving…" : "Save"}
+                                </button>
+                            </div>
+                        </section>
+                    {/if}
+
+                    <section class="field-group">
+                        <div class="field-group-head">
+                            <h3 class="field-group-title">
+                                Models
+                                <span class="hint">{selected.models.length}</span>
+                            </h3>
                             <span class="grow"></span>
                             <button
                                 class="btn btn-sm"
-                                onclick={() => fetchModels(p)}
-                                disabled={fetching[p.id] || p.apiType === "faux"}
-                                title={p.apiType === "faux"
+                                onclick={() => fetchModels(selected)}
+                                disabled={fetching || selected.apiType === "faux"}
+                                title={selected.apiType === "faux"
                                     ? "Faux providers have no API to fetch from"
-                                    : ""}
+                                    : "Pull model list from the provider's API"}
                             >
-                                {fetching[p.id] ? "Fetching…" : "Fetch from API"}
+                                {fetching ? "Fetching…" : "Fetch from API"}
                             </button>
                         </div>
-                        {#if p.models.length === 0}
+                        {#if selected.models.length === 0}
                             <div class="empty-sm">
                                 No models. Click "Fetch from API" to pull the list from the provider.
                             </div>
                         {:else}
-                            {#each groupedModels(p.models) as g (g.group)}
+                            {#each groupedModels(selected.models) as g (g.group)}
                                 <div class="model-group">
                                     <div class="model-group-head">{g.group}</div>
                                     <div class="model-list">
@@ -419,7 +485,7 @@ async function removeModel(p: Provider, modelId: string) {
                                                 <span class="model-id">{m.id}</span>
                                                 <button
                                                     class="btn btn-icon btn-sm danger"
-                                                    onclick={() => removeModel(p, m.id)}
+                                                    onclick={() => removeModel(selected, m.id)}
                                                     title="Remove model"
                                                 >
                                                     <Icon name="x" size={13} />
@@ -430,23 +496,28 @@ async function removeModel(p: Provider, modelId: string) {
                                 </div>
                             {/each}
                         {/if}
-                    </div>
-                {/if}
+                    </section>
 
-                <div class="prov-actions">
-                    <button class="btn btn-sm" onclick={() => testP(p)}>Test</button>
-                    {#if p.apiType !== "faux"}
-                        <button class="btn btn-sm" onclick={() => openEdit(p)}>Edit</button>
+                    {#if testView(selected.id)}
+                        {@const tv = testView(selected.id)}
+                        <div class="test-result {tv.state}">
+                            {#if tv.state === "testing"}
+                                testing…
+                            {:else if tv.state === "ok"}
+                                ✓ ok
+                            {:else}
+                                ✗ {tv.error}
+                            {/if}
+                        </div>
                     {/if}
-                    <button class="btn btn-sm btn-danger" onclick={() => removeProvider(p)}>
-                        Delete
-                    </button>
                 </div>
             </div>
-        {/each}
-    {/if}
+        {:else}
+            <div class="sub-detail-body"><div class="sub-detail-inner"><div class="empty">Select a provider or add a new one.</div></div></div>
+        {/if}
 
-    {#if error}
-        <div class="err-msg">{error}</div>
-    {/if}
+        {#if error}
+            <div class="sub-detail-body"><div class="sub-detail-inner"><div class="err-msg">{error}</div></div></div>
+        {/if}
+    </div>
 </div>

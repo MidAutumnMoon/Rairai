@@ -176,17 +176,22 @@ async function remove() {
 }
 </script>
 
-<section class="view">
-    <header class="view-head">
-        <button class="btn btn-ghost btn-sm" onclick={onBack}>
-            <Icon name="arrow-left" size={16} /> Back
-        </button>
+<div class="sub-detail">
+    <header class="sub-detail-head">
         <span
-            class="view-title">{isEdit ? "Edit assistant" : "New assistant"}</span>
+            class="sub-detail-title">{isEdit ? "Edit assistant" : "New assistant"}</span>
+        <div class="head-actions">
+            {#if isEdit}
+                <button class="btn btn-sm btn-danger" onclick={remove}>Delete</button>
+            {/if}
+            <button class="btn btn-sm" onclick={onBack}>Cancel</button>
+            <button class="btn btn-sm btn-primary" onclick={save} disabled={saving}>
+                {saving ? "Saving…" : "Save"}
+            </button>
+        </div>
     </header>
-
-    <div class="view-body">
-        <div class="view-inner">
+    <div class="sub-detail-body">
+        <div class="sub-detail-inner">
             <div class="grid">
                 <label class="field">
                     <span class="lbl">Name</span>
@@ -213,9 +218,7 @@ async function remove() {
                 </div>
             </div>
             {#if !providerId}
-                <p class="note">
-                    No provider bound. This assistant can't run until you pick a model.
-                </p>
+                <p class="note">No provider bound. This assistant can't run until you pick a model.</p>
             {/if}
 
             <div class="field">
@@ -312,15 +315,4 @@ async function remove() {
             {/if}
         </div>
     </div>
-
-    <footer class="view-actions">
-        {#if isEdit}
-            <button class="btn btn-danger" onclick={remove}>Delete</button>
-        {/if}
-        <span class="grow"></span>
-        <button class="btn" onclick={onBack}>Cancel</button>
-        <button class="btn btn-primary" onclick={save} disabled={saving}>
-            {saving ? "Saving…" : "Save"}
-        </button>
-    </footer>
-</section>
+</div>

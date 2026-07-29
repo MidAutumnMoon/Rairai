@@ -10,8 +10,10 @@ let { focusAssistantId = null }: { focusAssistantId?: string | null } =
 
 let providers = $state<Provider[]>([]);
 let providersLoaded = $state(false);
-let editing = $state<string | null | undefined>(undefined);
-// `undefined` = list view; a string (incl null target for "new") = editor open.
+// The selected assistant id; `null` = "New assistant" form.
+let selectedId = $state<string | null>(null);
+// Track whether we're focused on a specific assistant (from external nav).
+let focusedFromExternal = $state(false);
 
 async function loadProviders() {
     try {
@@ -25,68 +27,95 @@ $effect(() => {
     void loadProviders();
 });
 
-// When the parent requests a specific assistant (via prop), open it.
+// When the parent requests a specific assistant (via prop), select it.
 $effect(() => {
     if (focusAssistantId !== null) {
-        editing = focusAssistantId;
+        selectedId = focusAssistantId;
+        focusedFromExternal = true;
     }
 });
 
+// Default to the first assistant once loaded.
+$effect(() => {
+    if (!selectedId && chat.assistants.length) {
+        selectedId = chat.assistants[0].id;
+    }
+});
+
+const selected = $derived(
+    chat.assistants.find((a) => a.id === selectedId) ?? null,
+);
+const isNew = $derived(selectedId === null);
+
+function selectAssistant(id: string) {
+    selectedId = id;
+    focusedFromExternal = false;
+}
 function openNew() {
-    editing = null;
+    selectedId = null;
+    focusedFromExternal = false;
 }
 function back() {
-    editing = undefined;
+    // From the editor back button: return to the list (deselect to the
+    // first assistant if we were on "new").
+    if (!selected) {
+        selectedId = chat.assistants[0]?.id ?? null;
+    }
+    focusedFromExternal = false;
 }
 
-const shownAssistants = $derived(chat.assistants);
+function modelLabel(
+    a: { providerId: string | null; modelId: string | null },
+): string {
+    if (!a.providerId || !a.modelId) return "no model";
+    const p = providers.find((x) => x.id === a.providerId);
+    return p ? `${p.name} · ${a.modelId}` : `unknown · ${a.modelId}`;
+}
 </script>
 
-<div class="settings-content">
-    {#if editing === undefined}
-        <div class="toolbar">
+<div class="settings-split">
+    <nav class="sub-nav">
+        <div class="sub-nav-head">
             <span class="count">
-                {shownAssistants.length} assistant{shownAssistants.length === 1 ? "" : "s"}
+                {chat.assistants.length} assistant{chat.assistants.length === 1 ? "" : "s"}
             </span>
             <span class="grow"></span>
-            <button class="btn btn-sm btn-primary" onclick={openNew}>
-                <Icon name="plus" size={14} /> New assistant
-            </button>
         </div>
-
-        {#if !providersLoaded}
-            <div class="empty">Loading…</div>
-        {:else if shownAssistants.length === 0}
-            <div class="empty">No assistants. Click "+ New assistant" to create one.</div>
-        {:else}
-            {#each shownAssistants as a (a.id)}
+        <div class="sub-nav-list">
+            {#each chat.assistants as a (a.id)}
                 <button
-                    class="manage-row asst-row"
-                    class:active={a.id === chat.activeAssistantId}
-                    onclick={() => (editing = a.id)}
+                    class="sub-nav-item"
+                    class:active={selectedId === a.id}
+                    onclick={() => selectAssistant(a.id)}
+                    title={a.name}
                 >
-                    <span class="emoji">{a.emoji}</span>
-                    <span class="manage-info">
-                        <span class="manage-name">{a.name}</span>
-                        {#if a.description}<span class="manage-desc">{a.description}</span>{/if}
-                    </span>
-                    <span class="grow"></span>
-                    <span class="asst-model">
-                        {#if a.providerId && a.modelId}
-                            {providers.find((p) => p.id === a.providerId)?.name ?? "unknown"} · {a.modelId}
-                        {:else}
-                            <span class="dim">no model</span>
-                        {/if}
-                    </span>
-                    <Icon name="pencil" size={14} class="asst-edit" />
+                    <span class="asst-emoji">{a.emoji}</span>
+                    <span class="sub-nav-item-name">{a.name}</span>
                 </button>
             {/each}
+        </div>
+        <button class="btn btn-sm btn-ghost sub-nav-add" onclick={openNew}>
+            <Icon name="plus" size={14} /> New assistant
+        </button>
+    </nav>
+
+    <div class="sub-detail">
+        {#if !providersLoaded}
+            <div class="sub-detail-body"><div class="sub-detail-inner"><div class="empty">Loading…</div></div></div>
+        {:else if selected}
+            <AssistantEditor
+                assistantId={selected.id}
+                {providers}
+                onBack={back}
+            />
+        {:else if isNew}
+            <AssistantEditor
+                assistantId={null}
+                {providers}
+                onBack={back}
+            />
+        {:else}
+            <div class="sub-detail-body"><div class="sub-detail-inner"><div class="empty">Select an assistant or add a new one.</div></div></div>
         {/if}
-    {:else}
-        <AssistantEditor
-            assistantId={editing}
-            providers={providers}
-            onBack={back}
-        />
-    {/if}
+    </div>
 </div>
