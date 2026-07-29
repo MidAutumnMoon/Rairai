@@ -8,9 +8,15 @@
         "noEmit": true,
         "lib": ["esnext", "dom", "dom.iterable"],
         "types": ["svelte", "vite/client"],
+        "baseUrl": ".",
+        "paths": {
+            "$lib/*": ["frontend/lib/*"],
+            "$components/*": ["frontend/components/*"],
+            "$shared/*": ["shared/*"]
+        }
     },
     "include": ["frontend/**/*.ts", "frontend/**/*.svelte", "shared/**/*.ts"],
     "exclude": [
-        "server/**/*.ts", // Hides backend Deno code from Svelte LSP
-    ],
+        "server/**/*.ts" // Hides backend Deno code from Svelte LSP
+    ]
 }

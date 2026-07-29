@@ -1,22 +1,22 @@
 <script lang="ts">
-    // Thin wrapper over bits-ui Select so the ~20 lines of trigger/portal/
-    // content/viewport/item boilerplate live once. Styles come from app.css
-    // (.select-trigger / .select-content / .select-item).
-    import { Select } from "bits-ui";
-    import Icon from "./Icon.svelte";
+// Thin wrapper over bits-ui Select so the ~20 lines of trigger/portal/
+// content/viewport/item boilerplate live once. Styles come from app.css
+// (.select-trigger / .select-content / .select-item).
+import { Select } from "bits-ui";
+import Icon from "./Icon.svelte";
 
-    type Option = { value: string; label: string; disabled?: boolean };
-    let {
-        value = $bindable(""),
-        items,
-        placeholder = "Select…",
-        class: klass = "",
-    }: {
-        value?: string;
-        items: Option[];
-        placeholder?: string;
-        class?: string;
-    } = $props();
+type Option = { value: string; label: string; disabled?: boolean };
+let {
+    value = $bindable(""),
+    items,
+    placeholder = "Select…",
+    class: klass = "",
+}: {
+    value?: string;
+    items: Option[];
+    placeholder?: string;
+    class?: string;
+} = $props();
 </script>
 
 <Select.Root type="single" {items} bind:value>

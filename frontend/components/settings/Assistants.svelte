@@ -1,9 +1,9 @@
 <script lang="ts">
-import { chat } from "../lib/chat.svelte";
-import { listProviders } from "../lib/api.ts";
-import type { Provider } from "../../shared/api.ts";
-import Icon from "./ui/Icon.svelte";
-import AssistantEditor from "./AssistantEditor.svelte";
+import { chat } from "$lib/chat.svelte";
+import { listProviders } from "$lib/api.ts";
+import type { Provider } from "$shared/api.ts";
+import Icon from "$components/ui/Icon.svelte";
+import AssistantEditor from "./Editor.svelte";
 
 let { focusAssistantId = null }: { focusAssistantId?: string | null } =
     $props();

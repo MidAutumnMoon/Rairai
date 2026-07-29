@@ -1,10 +1,10 @@
 <script lang="ts">
-    import { Collapsible } from "bits-ui";
-    import type { ToolCall } from "../../shared/chat-events.ts";
+import { Collapsible } from "bits-ui";
+import type { ToolCall } from "$shared/chat-events.ts";
 
-    let { toolCall }: { toolCall: ToolCall } = $props();
+let { toolCall }: { toolCall: ToolCall } = $props();
 
-    let open = $state(false);
+let open = $state(false);
 </script>
 
 <Collapsible.Root bind:open class="tool">

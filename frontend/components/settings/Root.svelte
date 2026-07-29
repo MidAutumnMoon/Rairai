@@ -3,10 +3,10 @@
     // + data loading (loading is scoped to when the tab mounts, since the shell
     // only renders the active tab). Splitting the tabs kills the deeply-nested
     // {#if} branches the old single-file Settings had.
-    import SettingsProviders from "./SettingsProviders.svelte";
-    import SettingsAssistants from "./SettingsAssistants.svelte";
-    import SettingsGeneral from "./SettingsGeneral.svelte";
-    import SettingsData from "./SettingsData.svelte";
+    import SettingsProviders from "./Providers.svelte";
+    import SettingsAssistants from "./Assistants.svelte";
+    import SettingsGeneral from "./General.svelte";
+    import SettingsData from "./Data.svelte";
 
     let { tab, focusAssistantId = null }: { tab: string; focusAssistantId?: string | null } = $props();
 </script>

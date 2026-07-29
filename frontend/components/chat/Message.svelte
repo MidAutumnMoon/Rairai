@@ -1,31 +1,31 @@
 <script lang="ts">
-    import type { ChatMessage } from "../../shared/chat-events.ts";
-    import { chat } from "../lib/chat.svelte";
-    import { renderMarkdown } from "../lib/markdown";
-    import ReasoningBlock from "./ReasoningBlock.svelte";
-    import ToolCallCard from "./ToolCallCard.svelte";
-    import Icon from "./ui/Icon.svelte";
-    import Tooltip from "./ui/Tooltip.svelte";
+import type { ChatMessage } from "$shared/chat-events.ts";
+import { chat } from "$lib/chat.svelte";
+import { renderMarkdown } from "$lib/markdown";
+import ReasoningBlock from "./Reasoning.svelte";
+import ToolCallCard from "./ToolCall.svelte";
+import Icon from "$components/ui/Icon.svelte";
+import Tooltip from "$components/ui/Tooltip.svelte";
 
-    let { msg }: { msg: ChatMessage } = $props();
+let { msg }: { msg: ChatMessage } = $props();
 
-    let copied = $state(false);
+let copied = $state(false);
 
-    const isStreaming = $derived(chat.streamingMessageId === msg.id);
-    // Render markdown only for finalized messages; while streaming we show raw
-    // text to avoid re-parsing markdown on every token.
-    const html = $derived(isStreaming ? "" : renderMarkdown(msg.text));
-    const isAssistant = $derived(msg.role === "assistant");
+const isStreaming = $derived(chat.streamingMessageId === msg.id);
+// Render markdown only for finalized messages; while streaming we show raw
+// text to avoid re-parsing markdown on every token.
+const html = $derived(isStreaming ? "" : renderMarkdown(msg.text));
+const isAssistant = $derived(msg.role === "assistant");
 
-    async function copy() {
-        try {
-            await navigator.clipboard.writeText(msg.text);
-            copied = true;
-            setTimeout(() => (copied = false), 1200);
-        } catch {
-            // clipboard unavailable
-        }
+async function copy() {
+    try {
+        await navigator.clipboard.writeText(msg.text);
+        copied = true;
+        setTimeout(() => (copied = false), 1200);
+    } catch {
+        // clipboard unavailable
     }
+}
 </script>
 
 <article class="msg" class:assistant={isAssistant} class:user={!isAssistant}>

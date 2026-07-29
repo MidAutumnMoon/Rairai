@@ -1,17 +1,18 @@
 <script lang="ts">
-    import { Collapsible } from "bits-ui";
-    import Icon from "./ui/Icon.svelte";
-    import { renderMarkdown } from "../lib/markdown";
+import { Collapsible } from "bits-ui";
+import Icon from "$components/ui/Icon.svelte";
+import { renderMarkdown } from "$lib/markdown";
 
-    let { text, streaming = false }: { text: string; streaming?: boolean } = $props();
+let { text, streaming = false }: { text: string; streaming?: boolean } =
+    $props();
 
-    let open = $state(false);
-    // Auto-expand while reasoning streams in; let the user collapse afterwards.
-    $effect(() => {
-        if (streaming) open = true;
-    });
+let open = $state(false);
+// Auto-expand while reasoning streams in; let the user collapse afterwards.
+$effect(() => {
+    if (streaming) open = true;
+});
 
-    const html = $derived(streaming ? "" : renderMarkdown(text));
+const html = $derived(streaming ? "" : renderMarkdown(text));
 </script>
 
 <Collapsible.Root bind:open class="reasoning">

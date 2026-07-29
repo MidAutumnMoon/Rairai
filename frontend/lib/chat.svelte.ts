@@ -11,14 +11,14 @@ import {
     type NetworkLog,
     type ServerEvent,
     ServerEventSchema,
-} from "../../shared/chat-events.ts";
+} from "$shared/chat-events.ts";
 import type {
     Assistant,
     AssistantInput,
     AssistantSummary,
     Conversation,
     ConversationSummary,
-} from "../../shared/api.ts";
+} from "$shared/api.ts";
 import {
     createAssistant as createAssistantApi,
     createConversation,
@@ -32,8 +32,8 @@ import {
     updateAssistant as updateAssistantApi,
     updateSettings,
 } from "./api.ts";
-import { uid } from "../../shared/id.ts";
-import { messageOf } from "../../shared/error.ts";
+import { uid } from "$shared/id.ts";
+import { messageOf } from "$shared/error.ts";
 
 /** Stream ServerEvents from POST /api/chat by parsing the SSE wire format. */
 async function streamChat(

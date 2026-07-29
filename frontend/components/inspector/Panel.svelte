@@ -1,17 +1,19 @@
 <script lang="ts">
-    import { chat } from "../lib/chat.svelte";
-    import NetworkLogDetail from "./NetworkLogDetail.svelte";
-    import type { NetworkLog } from "../../shared/chat-events.ts";
-    import Icon from "./ui/Icon.svelte";
+import { chat } from "$lib/chat.svelte";
+import NetworkLogDetail from "./Detail.svelte";
+import type { NetworkLog } from "$shared/chat-events.ts";
+import Icon from "$components/ui/Icon.svelte";
 
-    let { onClose }: { onClose: () => void } = $props();
-    let selectedId = $state<string | null>(null);
-    const selected = $derived(chat.networkLogs.find((l) => l.id === selectedId) ?? null);
+let { onClose }: { onClose: () => void } = $props();
+let selectedId = $state<string | null>(null);
+const selected = $derived(
+    chat.networkLogs.find((l) => l.id === selectedId) ?? null,
+);
 
-    function modelOf(log: NetworkLog): string {
-        const body = log.request.body as { model?: string } | null;
-        return body?.model ?? log.request.url;
-    }
+function modelOf(log: NetworkLog): string {
+    const body = log.request.body as { model?: string } | null;
+    return body?.model ?? log.request.url;
+}
 </script>
 
 <aside class="inspector">

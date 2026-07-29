@@ -1,15 +1,15 @@
 <script lang="ts">
 import { onMount } from "svelte";
 import { Tooltip } from "bits-ui";
-import { chat } from "./lib/chat.svelte";
-import Sidebar from "./components/Sidebar.svelte";
-import ChatStream from "./components/ChatStream.svelte";
-import ChatInput from "./components/ChatInput.svelte";
-import NetworkInspector from "./components/NetworkInspector.svelte";
-import ManageAssistants from "./components/ManageAssistants.svelte";
-import Settings from "./components/Settings.svelte";
-import Icon from "./components/ui/Icon.svelte";
-import UITooltip from "./components/ui/Tooltip.svelte";
+import { chat } from "$lib/chat.svelte";
+import Sidebar from "$components/Sidebar.svelte";
+import ChatStream from "$components/chat/Stream.svelte";
+import ChatInput from "$components/chat/Input.svelte";
+import NetworkInspector from "$components/inspector/Panel.svelte";
+import Switcher from "$components/Switcher.svelte";
+import Settings from "$components/settings/Root.svelte";
+import Icon from "$components/ui/Icon.svelte";
+import UITooltip from "$components/ui/Tooltip.svelte";
 import "./app.css";
 
 // One sidebar at a time: chat sidebar (chat view) or settings nav (settings
@@ -120,7 +120,7 @@ function openAssistantEditor(id: string | null) {
                 </div>
 
                 <div class="drawer manage-drawer" class:open={manageOpen}>
-                    <ManageAssistants onClose={() => (manageOpen = false)} onEdit={openAssistantEditor} />
+                    <Switcher onClose={() => (manageOpen = false)} onEdit={openAssistantEditor} />
                 </div>
             {/if}
         </main>

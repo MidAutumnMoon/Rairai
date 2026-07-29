@@ -1,8 +1,8 @@
 <script lang="ts">
 import { Switch } from "bits-ui";
-import { getSettings, updateSettings } from "../lib/api.ts";
-import type { Settings } from "../../shared/api.ts";
-import { messageOf } from "../../shared/error.ts";
+import { getSettings, updateSettings } from "$lib/api.ts";
+import type { Settings } from "$shared/api.ts";
+import { messageOf } from "$shared/error.ts";
 
 let stream = $state(false);
 let saving = $state(false);

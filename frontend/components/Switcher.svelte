@@ -1,17 +1,21 @@
 <script lang="ts">
-    import { chat } from "../lib/chat.svelte";
-    import Icon from "./ui/Icon.svelte";
+import { chat } from "$lib/chat.svelte";
+import Icon from "./ui/Icon.svelte";
 
-    // Mirrors NetworkInspector: the drawer shell (.drawer.manage-drawer in App)
-    // only positions + toggles; this component owns the content - its own header
-    // (with the close button) and the assistant list, reading the chat store.
-    let { onClose, onEdit }: { onClose: () => void; onEdit: (id: string | null) => void } = $props();
+// Mirrors NetworkInspector: the drawer shell (.drawer.manage-drawer in App)
+// only positions + toggles; this component owns the content - its own header
+// (with the close button) and the assistant list, reading the chat store.
+let { onClose, onEdit }: {
+    onClose: () => void;
+    onEdit: (id: string | null) => void;
+} = $props();
 </script>
 
 <aside class="manage">
     <header class="drawer-head">
         <span class="drawer-title">Assistants</span>
-        <button class="btn btn-icon btn-sm" onclick={onClose} aria-label="Close">
+        <button class="btn btn-icon btn-sm" onclick={onClose}
+            aria-label="Close">
             <Icon name="x" size={16} />
         </button>
     </header>

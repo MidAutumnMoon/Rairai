@@ -14,7 +14,7 @@ import type {
     ProviderInput,
     ProviderTestResult,
     Settings,
-} from "../../shared/api.ts";
+} from "$shared/api.ts";
 
 const BASE = "/api";
 

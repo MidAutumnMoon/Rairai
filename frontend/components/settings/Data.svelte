@@ -1,8 +1,8 @@
 <script lang="ts">
-import { listConversations } from "../lib/api.ts";
-import type { ConversationSummary } from "../../shared/api.ts";
-import { chat } from "../lib/chat.svelte";
-import { messageOf } from "../../shared/error.ts";
+import { listConversations } from "$lib/api.ts";
+import type { ConversationSummary } from "$shared/api.ts";
+import { chat } from "$lib/chat.svelte";
+import { messageOf } from "$shared/error.ts";
 
 let convos = $state<ConversationSummary[]>([]);
 let loading = $state(false);

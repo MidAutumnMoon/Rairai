@@ -10,13 +10,14 @@ import type {
     PromptBlock,
     PromptRole,
     Provider,
-} from "../../shared/api.ts";
-import { chat } from "../lib/chat.svelte";
-import { getAssistant } from "../lib/api.ts";
-import { uid } from "../../shared/id.ts";
-import { messageOf } from "../../shared/error.ts";
-import Icon from "./ui/Icon.svelte";
-import Select from "./ui/Select.svelte";
+} from "$shared/api.ts";
+import { chat } from "$lib/chat.svelte";
+import { getAssistant } from "$lib/api.ts";
+import { uid } from "$shared/id.ts";
+import { messageOf } from "$shared/error.ts";
+import Icon from "$components/ui/Icon.svelte";
+import Select from "$components/ui/Select.svelte";
+import Block from "./Block.svelte";
 
 let {
     assistantId = null,
@@ -230,76 +231,17 @@ async function remove() {
                 </span>
                 <div class="pblocks">
                     {#each prompts as block, i (block.id)}
-                        <div class="pblock" class:disabled={!block.enabled}>
-                            <div class="pblock-head">
-                                {#if block.role === "history"}
-                                    <span class="pblock-marker">⌖ History insertion point</span>
-                                {:else}
-                                    <button
-                                        type="button"
-                                        class="pblock-toggle"
-                                        data-state={block.enabled ? "on" : "off"}
-                                        title={block.enabled ? "Enabled" : "Disabled"}
-                                        onclick={() => toggleBlock(block.id)}
-                                    >
-                                        <Icon name={block.enabled ? "check" : "x"} size={15} />
-                                    </button>
-                                    <select
-                                        class="pblock-role"
-                                        value={block.role}
-                                        onchange={(e) =>
-                                            patchBlock(block.id, {
-                                                role: (e.currentTarget as HTMLSelectElement)
-                                                    .value as PromptRole,
-                                            })}
-                                    >
-                                        {#each roleOptions as r (r.value)}
-                                            <option value={r.value}>{r.label}</option>
-                                        {/each}
-                                    </select>
-                                    <input class="pblock-name" bind:value={block.name} placeholder="block name" />
-                                {/if}
-                                <div class="pblock-actions">
-                                    <button
-                                        type="button"
-                                        class="btn btn-icon btn-sm"
-                                        onclick={() => moveBlock(i, -1)}
-                                        disabled={i === 0}
-                                        title="Move up"
-                                    >
-                                        <Icon name="chevron-up" size={15} />
-                                    </button>
-                                    <button
-                                        type="button"
-                                        class="btn btn-icon btn-sm"
-                                        onclick={() => moveBlock(i, 1)}
-                                        disabled={i === prompts.length - 1}
-                                        title="Move down"
-                                    >
-                                        <Icon name="chevron-down" size={15} />
-                                    </button>
-                                    <button
-                                        type="button"
-                                        class="btn btn-icon btn-sm danger"
-                                        onclick={() => removeBlock(i)}
-                                        title="Delete block"
-                                    >
-                                        <Icon name="trash" size={15} />
-                                    </button>
-                                </div>
-                            </div>
-                            {#if block.role !== "history"}
-                                <textarea
-                                    class="pblock-content"
-                                    bind:value={block.content}
-                                    placeholder={block.role === "system"
-                                        ? "System instructions…"
-                                        : block.role === "user"
-                                          ? "User example…"
-                                          : "Assistant example…"}
-                                ></textarea>
-                            {/if}
-                        </div>
+                        <Block
+                            {block}
+                            index={i}
+                            first={i === 0}
+                            last={i === prompts.length - 1}
+                            {roleOptions}
+                            ontoggle={toggleBlock}
+                            onpatch={patchBlock}
+                            onmove={moveBlock}
+                            onremove={removeBlock}
+                        />
                     {/each}
                 </div>
                 <div class="pblock-add">
