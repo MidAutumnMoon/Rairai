@@ -5,7 +5,6 @@
     import Transcript from "$components/chat/Transcript.svelte";
     import ChatInput from "$components/chat/Input.svelte";
     import NetworkInspector from "$components/inspector/Panel.svelte";
-    import Switcher from "$components/Switcher.svelte";
     import Settings from "$components/settings/Root.svelte";
     import Icon from "$components/ui/Icon.svelte";
     import Button from "$components/ui/Button.svelte";
@@ -13,11 +12,9 @@
 
     // One sidebar at a time: chat sidebar (chat view) or settings nav (settings
     // view). The settings nav REPLACES the chat sidebar - no double-sidebar.
-    // Overlays: inspector drawer + manage-assistants drawer. Editing an
-    // assistant is now a tab *inside* Settings, not a standalone view.
+    // Overlays: inspector drawer. Editing an assistant is a tab *inside* Settings.
     let view = $state<"chat" | "settings">("chat");
     let inspectorOpen = $state(false);
-    let manageOpen = $state(false);
     let settingsTab = $state<"providers" | "assistants" | "general" | "data">(
         "providers",
     );
@@ -38,7 +35,6 @@
         focusAssistantId = id;
         settingsTab = "assistants";
         view = "settings";
-        manageOpen = false;
     }
 </script>
 
@@ -89,9 +85,9 @@
         </aside>
     {:else}
         <Sidebar
-            onOpenManage={() => (manageOpen = true)}
             onOpenSettings={openSettings}
             onNavigateToChat={navigateToChat}
+            onEditAssistant={openAssistantEditor}
         />
     {/if}
 
@@ -122,13 +118,6 @@
 
             <div class="drawer inspector-drawer" class:open={inspectorOpen}>
                 <NetworkInspector onClose={() => (inspectorOpen = false)} />
-            </div>
-
-            <div class="drawer manage-drawer" class:open={manageOpen}>
-                <Switcher
-                    onClose={() => (manageOpen = false)}
-                    onEdit={openAssistantEditor}
-                />
             </div>
         {/if}
     </main>

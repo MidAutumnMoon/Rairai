@@ -50,9 +50,6 @@
 .drawer.open {
     transform: translateX(0);
 }
-.manage-drawer {
-    width: min(360px, 50vw);
-}
 .inspector-drawer {
     width: min(440px, 50vw);
 }

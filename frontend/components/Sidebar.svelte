@@ -1,39 +1,50 @@
 <script lang="ts">
 import { chat } from "$lib/chat.svelte";
 import Icon from "./ui/Icon.svelte";
+import Switcher from "./Switcher.svelte";
 
 let {
-    onOpenManage,
     onOpenSettings,
     onNavigateToChat,
+    onEditAssistant,
 }: {
-    onOpenManage: () => void;
     onOpenSettings: () => void;
     onNavigateToChat: () => void;
+    onEditAssistant: (id: string | null) => void;
 } = $props();
 
 const active = $derived(
     chat.assistants.find((a) => a.id === chat.activeAssistantId) ?? null,
 );
+
+let popupOpen = $state(false);
+
+function togglePopup() {
+    popupOpen = !popupOpen;
+}
+function closePopup() {
+    popupOpen = false;
+}
 </script>
 
 <aside class="sidebar">
-    <!-- Active assistant (compact card; click opens the manage drawer).
-         This is the primary selector - always shows which assistant is active. -->
-    <button class="aa-card" onclick={onOpenManage} title="Manage assistants">
-        {#if active}
-            <span class="aa-emoji">{active.emoji}</span>
-            <span class="aa-info">
-                <span class="aa-name">{active.name}</span>
-                {#if active.description}<span class="aa-desc"
-                        >{active.description}</span
-                    >{/if}
-            </span>
-        {:else}
-            <span class="aa-name">No assistant</span>
-        {/if}
-        <Icon name="chevron-down" size={16} class="aa-chev" />
-    </button>
+    <!-- Active assistant (compact card; click opens the selection popup). -->
+    <div class="aa-wrap">
+        <button class="aa-card" onclick={togglePopup} title="Manage assistants">
+            {#if active}
+                <span class="aa-emoji">{active.emoji}</span>
+                <span class="aa-info">
+                    <span class="aa-name">{active.name}</span>
+                    {#if active.description}<span class="aa-desc"
+                            >{active.description}</span
+                        >{/if}
+                </span>
+            {:else}
+                <span class="aa-name">No assistant</span>
+            {/if}
+            <Icon name="chevron-right" size={16} class="aa-chev" />
+        </button>
+    </div>
 
     <!-- Chats (scoped to the active assistant; stable - never pushed by assistant count). -->
     <div class="convos">
@@ -73,8 +84,42 @@ const active = $derived(
         </button>
     </footer>
 </aside>
-
+{#if popupOpen}
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div class="modal-backdrop" onclick={closePopup} onkeydown={() => {}}>
+        <div class="modal-card" onclick={(e) => e.stopPropagation()}>
+            <Switcher
+                onClose={closePopup}
+                onEdit={(id) => {
+                    closePopup();
+                    onEditAssistant(id);
+                }}
+            />
+        </div>
+    </div>
+{/if}
 <style>
+.aa-wrap {
+    flex: none;
+}
+.modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--overlay);
+    backdrop-filter: blur(var(--overlay-blur));
+}
+.modal-card {
+    width: min(640px, 90vw);
+    max-height: min(720px, 80vh);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-lg);
+}
 .aa-card {
     flex: none;
     display: flex;
@@ -82,7 +127,7 @@ const active = $derived(
     gap: 0.55rem;
     width: 100%;
     text-align: start;
-    padding: 0.7rem 0.85rem;
+    padding: 0.85rem 0.95rem;
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--r-md);
@@ -106,7 +151,7 @@ const active = $derived(
     flex-direction: column;
     min-width: 0;
     flex: 1;
-    gap: 0.05rem;
+    gap: 0.1rem;
 }
 .aa-name {
     font-size: var(--t-sm);
@@ -116,7 +161,7 @@ const active = $derived(
     white-space: nowrap;
 }
 .aa-desc {
-    font-size: var(--t-3xs);
+    font-size: var(--t-2xs);
     color: var(--text-faint);
     overflow: hidden;
     text-overflow: ellipsis;

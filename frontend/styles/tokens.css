@@ -52,6 +52,10 @@
     /* Directional edge shadow - cast by the main pane over the sidebar. */
     --shadow-edge: -3px 0 8px -3px oklch(24% 0.01 260 / 0.1);
 
+    /* Overlay — for modal backdrops and dimmed surfaces. */
+    --overlay: oklch(0% 0 0 / 0.4);
+    --overlay-blur: 4px;
+
     /* Type scale — use these instead of hardcoded rem font-sizes. */
     --t-base: 1rem;
     --t-sm: 0.875rem;
