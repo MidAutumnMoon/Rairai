@@ -117,7 +117,7 @@ async function copy() {
     font-family: var(--mono);
 }
 .msg-body {
-    font-size: 0.90625rem;
+    font-size: 1rem;
     line-height: 1.65;
 }
 .msg-body .raw {
