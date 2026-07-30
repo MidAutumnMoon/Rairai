@@ -47,7 +47,7 @@
     }
 </script>
 
-<div class="stream" bind:this={container} onscroll={onScroll}>
+<div class="transcript" bind:this={container} onscroll={onScroll}>
     {#if chat.active?.hasMore}
         <div class="load-more">
             {loadingOlder ? "Loading older…" : "↑ older messages"}
@@ -68,7 +68,7 @@
 </div>
 
 <style>
-    .stream {
+.transcript {
         flex: 1;
         min-height: 0;
         overflow-y: auto;

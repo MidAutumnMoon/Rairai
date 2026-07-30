@@ -2,7 +2,7 @@
     import { onMount } from "svelte";
     import { chat } from "$lib/chat.svelte";
     import Sidebar from "$components/Sidebar.svelte";
-    import ChatStream from "$components/chat/Stream.svelte";
+    import Transcript from "$components/chat/Transcript.svelte";
     import ChatInput from "$components/chat/Input.svelte";
     import NetworkInspector from "$components/inspector/Panel.svelte";
     import Switcher from "$components/Switcher.svelte";
@@ -116,7 +116,7 @@
                         </Button>
                     </div>
                 </header>
-                <ChatStream />
+                <Transcript />
                 <ChatInput />
             </div>
 
