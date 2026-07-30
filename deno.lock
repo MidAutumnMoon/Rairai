@@ -6,6 +6,7 @@
     "jsr:@std/internal@^1.0.12": "1.0.14",
     "npm:@earendil-works/pi-agent-core@~0.82.1": "0.82.1_zod@3.25.76",
     "npm:@earendil-works/pi-ai@~0.82.1": "0.82.1_zod@3.25.76",
+    "npm:@lucide/svelte@^1.27.0": "1.27.0_svelte@5.56.8",
     "npm:@sveltejs/vite-plugin-svelte@^7.2.0": "7.2.0_svelte@5.56.8_vite@8.1.5",
     "npm:bits-ui@2": "2.18.1_@internationalized+date@3.12.2_svelte@5.56.8",
     "npm:concurrently@^10.0.4": "10.0.4",
@@ -410,6 +411,12 @@
       "dependencies": [
         "@jridgewell/resolve-uri",
         "@jridgewell/sourcemap-codec"
+      ]
+    },
+    "@lucide/svelte@1.27.0_svelte@5.56.8": {
+      "integrity": "sha512-qzNBHdqy/MKp2qxuy/DcYELuep6h19fjo+4ech8fZsS4GtZeBtg5jgCTRQvLvwhppt0mhRN6qt8Nt8rPb/J4Ag==",
+      "dependencies": [
+        "svelte"
       ]
     },
     "@mistralai/mistralai@2.2.6_@opentelemetry+api@1.9.0": {
@@ -1287,6 +1294,7 @@
       "jsr:@std/assert@1",
       "npm:@earendil-works/pi-agent-core@~0.82.1",
       "npm:@earendil-works/pi-ai@~0.82.1",
+      "npm:@lucide/svelte@^1.27.0",
       "npm:@sveltejs/vite-plugin-svelte@^7.2.0",
       "npm:bits-ui@2",
       "npm:concurrently@^10.0.4",

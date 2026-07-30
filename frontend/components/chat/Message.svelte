@@ -5,7 +5,7 @@ import { renderMarkdown } from "$lib/markdown";
 import ReasoningBlock from "./Reasoning.svelte";
 import ToolCallCard from "./ToolCall.svelte";
 import Icon from "$components/ui/Icon.svelte";
-import Tooltip from "$components/ui/Tooltip.svelte";
+import Button from "$components/ui/Button.svelte";
 
 let { msg }: { msg: ChatMessage } = $props();
 
@@ -62,9 +62,9 @@ async function copy() {
     {#if !isStreaming}
         <footer class="msg-footer">
             {#if msg.text}
-                <Tooltip label="Copy" class="btn btn-ghost btn-sm" onclick={copy}>
+                <Button label="Copy" class="btn btn-ghost btn-sm" onclick={copy}>
                     <Icon name={copied ? "check" : "copy"} size={14} />
-                </Tooltip>
+                </Button>
             {/if}
             {#if msg.usage}
                 <span class="tokens">

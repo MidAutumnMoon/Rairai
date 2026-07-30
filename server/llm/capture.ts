@@ -4,7 +4,7 @@
 // ordering is the invariant the agent loop relies on.
 
 import type { AssistantMessage } from "@earendil-works/pi-ai";
-import type { NetworkLog } from "../../shared/chat-events.ts";
+import type { NetworkLog } from "$shared/chat-events.ts";
 
 export class NetworkCapture {
     private id = "";
