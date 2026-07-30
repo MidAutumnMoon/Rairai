@@ -17,13 +17,17 @@
     flex-direction: column;
     background: var(--surface-2);
     border-inline-end: 1px solid var(--border);
-    padding: 0.5rem;
+    padding: 0.5rem 0.5rem 0.75rem;
     gap: 0.5rem;
 }
 .main-pane {
     position: relative;
     display: flex;
     flex-direction: column;
+    /* Cast a soft shadow leftward over the sidebar so the main content reads
+       as elevated above it. The shadow paints over the sidebar because
+       .main-pane is the later grid sibling. */
+    box-shadow: var(--shadow-edge);
 }
 .chat-pane {
     display: flex;
