@@ -74,7 +74,7 @@
                 {#if chat.isStreaming}
                     <Button
                         label="Stop"
-                        class="composer-send-btn stop"
+                        class="btn btn-icon btn-danger btn-pill"
                         onclick={() => chat.abort()}
                     >
                         <Icon name="stop" size={16} />
@@ -82,7 +82,7 @@
                 {:else}
                     <Button
                         label="Send"
-                        class="composer-send-btn"
+                        class="btn btn-icon btn-primary btn-pill"
                         onclick={send}
                         disabled={!text.trim()}
                     >
@@ -105,10 +105,10 @@
         background: var(--surface);
         max-width: var(--content-w);
         margin-inline: auto;
-        padding: 0.5rem 1.5rem;
+        padding: 0.85rem 0.85rem;
         display: flex;
         flex-direction: column;
-        gap: 0.5rem;
+        gap: 0.55rem;
         box-shadow: var(--shadow-sm);
         transition:
             border-color var(--transition),
@@ -124,7 +124,8 @@
         background: transparent;
         resize: none;
         outline: none;
-        padding: 0.5rem 0.3rem;
+        padding: 0.3rem 0;
+        min-height: 44px;
         max-height: 200px;
         font-size: 14px;
         line-height: 1.5;
@@ -175,35 +176,5 @@
         display: flex;
         align-items: center;
         flex-shrink: 0;
-    }
-    .composer-send-btn {
-        width: 32px;
-        height: 32px;
-        border-radius: var(--r-full);
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        background: var(--primary);
-        color: var(--primary-foreground);
-        transition:
-            background var(--transition),
-            opacity var(--transition),
-            transform var(--transition);
-    }
-    .composer-send-btn:hover {
-        background: var(--primary-hover);
-    }
-    .composer-send-btn:active {
-        transform: scale(0.94);
-    }
-    .composer-send-btn:disabled {
-        opacity: 0.4;
-        cursor: not-allowed;
-    }
-    .composer-send-btn.stop {
-        background: var(--danger);
-    }
-    .composer-send-btn.stop:hover {
-        background: var(--danger-hover);
     }
 </style>

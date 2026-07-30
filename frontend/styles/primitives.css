@@ -81,14 +81,27 @@
     font-size: 12px;
     border-radius: var(--r-sm);
 }
+/* Icon buttons: square, no horizontal padding. Only geometry here — color
+   belongs to the variant. A bare .btn-icon defaults to a muted icon, but a
+   composed variant (.btn-primary / .btn-danger) must win the color cascade:
+   previously .btn-icon set color unconditionally and, by source order, beat
+   .btn-primary's white / .btn-danger's red, so a primary icon button rendered
+   a muted icon on a violet field. Restrict the muted default to a bare
+   .btn-icon (no variant) so variants are not overridden. */
 .btn-icon {
     width: var(--control-h);
     padding-inline: 0;
     border-radius: var(--r);
+}
+.btn-icon:not(.btn-primary):not(.btn-danger):not(.btn-ghost) {
     color: var(--text-muted);
 }
 .btn-icon.btn-sm {
     width: var(--control-h-sm);
+}
+/* Round (pill) icon button — reusable, not composer-specific. */
+.btn-pill {
+    border-radius: var(--r-full);
 }
 
 /* ---- inputs ---- */
