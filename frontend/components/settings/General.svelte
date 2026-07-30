@@ -1,41 +1,41 @@
 <script lang="ts">
-import { Switch } from "bits-ui";
-import { getSettings, updateSettings } from "$lib/api.ts";
-import { messageOf } from "$shared/error.ts";
+    import { Switch } from "bits-ui";
+    import { getSettings, updateSettings } from "$lib/api.ts";
+    import { messageOf } from "$shared/error.ts";
 
-let stream = $state(false);
-let saving = $state(false);
-let saved = $state(false);
-let error = $state<string | null>(null);
+    let stream = $state(false);
+    let saving = $state(false);
+    let saved = $state(false);
+    let error = $state<string | null>(null);
 
-async function load() {
-    try {
-        const s = await getSettings();
-        stream = s.defaultStream;
-    } catch (e) {
-        error = messageOf(e);
+    async function load() {
+        try {
+            const s = await getSettings();
+            stream = s.defaultStream;
+        } catch (e) {
+            error = messageOf(e);
+        }
     }
-}
 
-$effect(() => {
-    void load();
-});
+    $effect(() => {
+        void load();
+    });
 
-async function save() {
-    saving = true;
-    saved = false;
-    error = null;
-    try {
-        const s = await updateSettings({ defaultStream: stream });
-        stream = s.defaultStream;
-        saved = true;
-        setTimeout(() => (saved = false), 2500);
-    } catch (e) {
-        error = messageOf(e);
-    } finally {
-        saving = false;
+    async function save() {
+        saving = true;
+        saved = false;
+        error = null;
+        try {
+            const s = await updateSettings({ defaultStream: stream });
+            stream = s.defaultStream;
+            saved = true;
+            setTimeout(() => (saved = false), 2500);
+        } catch (e) {
+            error = messageOf(e);
+        } finally {
+            saving = false;
+        }
     }
-}
 </script>
 
 <div class="settings-content">

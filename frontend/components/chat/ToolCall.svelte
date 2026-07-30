@@ -1,10 +1,10 @@
 <script lang="ts">
-import { Collapsible } from "bits-ui";
-import type { ToolCall } from "$shared/chat-events.ts";
+    import { Collapsible } from "bits-ui";
+    import type { ToolCall } from "$shared/chat-events.ts";
 
-let { toolCall }: { toolCall: ToolCall } = $props();
+    let { toolCall }: { toolCall: ToolCall } = $props();
 
-let open = $state(false);
+    let open = $state(false);
 </script>
 
 <Collapsible.Root bind:open class="tool">
@@ -27,7 +27,9 @@ let open = $state(false);
         <pre class="v">{toolCall.args}</pre>
         {#if toolCall.result != null}
             <span class="k">result</span>
-            <pre class="v" class:err={toolCall.status === "error"}>{toolCall.result}</pre>
+            <pre
+                class="v"
+                class:err={toolCall.status === "error"}>{toolCall.result}</pre>
         {/if}
     </Collapsible.Content>
 </Collapsible.Root>

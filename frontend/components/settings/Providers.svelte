@@ -7,7 +7,7 @@
         testProvider,
         updateProvider,
     } from "$lib/api.ts";
-    import type { ApiType, Provider, ProviderInput } from "$shared/api.ts";
+    import type { Provider, ProviderInput } from "$shared/api.ts";
     import { messageOf } from "$shared/error.ts";
     import Plus from "@lucide/svelte/icons/plus";
     import ConnectionForm, { type FormState } from "./ConnectionForm.svelte";

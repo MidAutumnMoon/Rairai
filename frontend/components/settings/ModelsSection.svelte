@@ -1,37 +1,39 @@
 <script lang="ts">
     // A provider's model list, grouped by maker, with a Fetch-from-API action.
-    // Extracted from Providers.svelte to flatten the detail pane: the nested
-    // {#each group}{#each model} lived inline, compounding the indentation.
+    // Flat loop: group headers and model rows are sibling items in one {#each},
+    // eliminating the nested group→list→row DOM and the double indentation it causes.
     import type { Model, Provider } from "$shared/api.ts";
     import X from "@lucide/svelte/icons/x";
+
+    interface Props {
+        provider: Provider;
+        fetching?: boolean;
+        onfetch: () => void;
+        onremove: (modelId: string) => void;
+    }
 
     let {
         provider,
         fetching = false,
         onfetch,
         onremove,
-    }: {
-        provider: Provider;
-        fetching?: boolean;
-        onfetch: () => void;
-        onremove: (modelId: string) => void;
-    } = $props();
+    }: Props = $props();
 
-    function groupedModels(
-        models: Model[],
-    ): { group: string; models: Model[] }[] {
-        const out: { group: string; models: Model[] }[] = [];
-        const seen = new Map<string, number>();
+    type FlatItem =
+        | { kind: "header"; group: string }
+        | { kind: "model"; model: Model };
+
+    function flatModels(models: Model[]): FlatItem[] {
+        const items: FlatItem[] = [];
+        const seen = new Set<string>();
         for (const m of models) {
-            const idx = seen.get(m.group);
-            if (idx === undefined) {
-                seen.set(m.group, out.length);
-                out.push({ group: m.group, models: [m] });
-            } else {
-                out[idx].models.push(m);
+            if (!seen.has(m.group)) {
+                seen.add(m.group);
+                items.push({ kind: "header", group: m.group });
             }
+            items.push({ kind: "model", model: m });
         }
-        return out;
+        return items;
     }
 </script>
 
@@ -59,26 +61,22 @@
             provider.
         </div>
     {:else}
-        {#each groupedModels(provider.models) as g (g.group)}
-            <div class="model-group">
-                <div class="model-group-head">{g.group}</div>
-                <div class="model-list">
-                    {#each g.models as m (m.id)}
-                        <div class="model-row">
-                            <span class="model-name" title={m.id}>{m.name}</span
-                            >
-                            <span class="model-id">{m.id}</span>
-                            <button
-                                class="btn btn-icon btn-sm danger"
-                                onclick={() => onremove(m.id)}
-                                title="Remove model"
-                            >
-                                <X size={13} />
-                            </button>
-                        </div>
-                    {/each}
+        {#each flatModels(provider.models) as item}
+            {#if item.kind === "header"}
+                <div class="model-group-head">{item.group}</div>
+            {:else}
+                <div class="model-row">
+                    <span class="model-name" title={item.model.id}>{item.model.name}</span>
+                    <span class="model-id">{item.model.id}</span>
+                    <button
+                        class="btn btn-icon btn-sm danger"
+                        onclick={() => onremove(item.model.id)}
+                        title="Remove model"
+                    >
+                        <X size={13} />
+                    </button>
                 </div>
-            </div>
+            {/if}
         {/each}
     {/if}
 </section>
@@ -94,11 +92,6 @@
         color: var(--text-faint);
         padding: 0.4rem 0;
     }
-    .model-group {
-        display: flex;
-        flex-direction: column;
-        gap: 0.15rem;
-    }
     .model-group-head {
         font-size: var(--t-micro);
         font-weight: 700;
@@ -106,10 +99,10 @@
         letter-spacing: 0.04em;
         color: var(--text-faint);
         padding: 0.2rem 0;
+        margin-top: 0.3rem;
     }
-    .model-list {
-        display: flex;
-        flex-direction: column;
+    .model-group-head:first-child {
+        margin-top: 0;
     }
     .model-row {
         display: flex;

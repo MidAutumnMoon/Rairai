@@ -1,44 +1,44 @@
 <script lang="ts">
-// One prompt block in the assistant editor. Extracted from Editor.svelte
-// because the {#each} body was the deepest nesting in the file (5-6 levels:
-// each -> if/else -> toggle -> actions -> textarea). The per-item renderer
-// belongs in its own file; the editor just maps over blocks.
-import type { PromptBlock, PromptRole } from "$shared/api.ts";
-import Check from "@lucide/svelte/icons/check";
-import X from "@lucide/svelte/icons/x";
-import ChevronUp from "@lucide/svelte/icons/chevron-up";
-import ChevronDown from "@lucide/svelte/icons/chevron-down";
-import Trash from "@lucide/svelte/icons/trash";
+    // One prompt block in the assistant editor. Extracted from Editor.svelte
+    // because the {#each} body was the deepest nesting in the file (5-6 levels:
+    // each -> if/else -> toggle -> actions -> textarea). The per-item renderer
+    // belongs in its own file; the editor just maps over blocks.
+    import type { PromptBlock, PromptRole } from "$shared/api.ts";
+    import Check from "@lucide/svelte/icons/check";
+    import X from "@lucide/svelte/icons/x";
+    import ChevronUp from "@lucide/svelte/icons/chevron-up";
+    import ChevronDown from "@lucide/svelte/icons/chevron-down";
+    import Trash from "@lucide/svelte/icons/trash";
 
-let {
-    block,
-    index,
-    first,
-    last,
-    roleOptions,
-    ontoggle,
-    onpatch,
-    onmove,
-    onremove,
-}: {
-    block: PromptBlock;
-    index: number;
-    first: boolean;
-    last: boolean;
-    roleOptions: { value: PromptRole; label: string }[];
-    ontoggle: (id: string) => void;
-    onpatch: (id: string, patch: Partial<PromptBlock>) => void;
-    onmove: (i: number, dir: -1 | 1) => void;
-    onremove: (i: number) => void;
-} = $props();
+    let {
+        block,
+        index,
+        first,
+        last,
+        roleOptions,
+        ontoggle,
+        onpatch,
+        onmove,
+        onremove,
+    }: {
+        block: PromptBlock;
+        index: number;
+        first: boolean;
+        last: boolean;
+        roleOptions: { value: PromptRole; label: string }[];
+        ontoggle: (id: string) => void;
+        onpatch: (id: string, patch: Partial<PromptBlock>) => void;
+        onmove: (i: number, dir: -1 | 1) => void;
+        onremove: (i: number) => void;
+    } = $props();
 
-const placeholder = $derived(
-    block.role === "system"
-        ? "System instructions…"
-        : block.role === "user"
-        ? "User example…"
-        : "Assistant example…",
-);
+    const placeholder = $derived(
+        block.role === "system"
+            ? "System instructions…"
+            : block.role === "user"
+              ? "User example…"
+              : "Assistant example…",
+    );
 </script>
 
 <div class="pblock" class:disabled={!block.enabled}>
@@ -53,21 +53,28 @@ const placeholder = $derived(
                 title={block.enabled ? "Enabled" : "Disabled"}
                 onclick={() => ontoggle(block.id)}
             >
-                {#if block.enabled}<Check size={15} />{:else}<X size={15} />{/if}
+                {#if block.enabled}<Check size={15} />{:else}<X
+                        size={15}
+                    />{/if}
             </button>
             <select
                 class="pblock-role"
                 value={block.role}
                 onchange={(e) =>
                     onpatch(block.id, {
-                        role: (e.currentTarget as HTMLSelectElement).value as PromptRole,
+                        role: (e.currentTarget as HTMLSelectElement)
+                            .value as PromptRole,
                     })}
             >
                 {#each roleOptions as r (r.value)}
                     <option value={r.value}>{r.label}</option>
                 {/each}
             </select>
-            <input class="pblock-name" bind:value={block.name} placeholder="block name" />
+            <input
+                class="pblock-name"
+                bind:value={block.name}
+                placeholder="block name"
+            />
         {/if}
         <div class="pblock-actions">
             <button
@@ -99,7 +106,10 @@ const placeholder = $derived(
         </div>
     </div>
     {#if block.role !== "history"}
-        <textarea class="pblock-content" bind:value={block.content} {placeholder}></textarea>
+        <textarea
+            class="pblock-content"
+            bind:value={block.content}
+            {placeholder}></textarea>
     {/if}
 </div>
 
