@@ -1,23 +1,23 @@
 :root {
     color-scheme: light;
 
-    /* Surfaces — cool near-whites, white cards. */
-    --bg: oklch(98.5% 0.004 264);
+    /* Surfaces — clean whites and a quiet receding grey for the sidebar. */
+    --bg: oklch(100% 0 0);
     --surface: oklch(100% 0 0);
-    --surface-2: oklch(96.5% 0.006 264);
-    --surface-3: oklch(94% 0.008 264);
+    --surface-2: oklch(97% 0.004 260);
+    --surface-3: oklch(93% 0.006 260);
 
     /* Lines. */
-    --border: oklch(90% 0.008 264);
-    --border-strong: oklch(84% 0.012 264);
+    --border: oklch(90% 0.005 260);
+    --border-strong: oklch(84% 0.007 260);
 
     /* Text. */
-    --text: oklch(24% 0.02 268);
-    --text-muted: oklch(48% 0.02 268);
-    --text-faint: oklch(60% 0.015 268);
+    --text: oklch(24% 0.01 260);
+    --text-muted: oklch(48% 0.01 260);
+    --text-faint: oklch(60% 0.008 260);
 
-    /* Accent — friendly violet; one source for the whole family. */
-    --primary: oklch(58% 0.2 285);
+    /* Accent — clean blue; one source for the whole family. */
+    --primary: oklch(58% 0.18 255);
     --primary-hover: color-mix(in oklch, var(--primary), black 12%);
     --primary-soft: color-mix(in oklch, var(--primary), white 88%);
     --primary-softer: color-mix(in oklch, var(--primary), white 94%);
@@ -28,10 +28,8 @@
     --ok: oklch(64% 0.16 145);
     --ok-soft: color-mix(in oklch, var(--ok), white 90%);
     --warn: oklch(78% 0.15 75);
-    --warn-soft: color-mix(in oklch, var(--warn), white 88%);
     --danger: oklch(60% 0.21 22);
     --danger-soft: color-mix(in oklch, var(--danger), white 90%);
-    --danger-hover: color-mix(in oklch, var(--danger), black 10%);
 
     /* Radii. */
     --r-sm: 6px;
@@ -43,14 +41,14 @@
     /* Content column - messages and composer share this width. */
     --content-w: 50rem;
 
-    /* Soft, low-contrast shadows (friendly, not heavy). */
-    --shadow-sm: 0 1px 2px oklch(24% 0.02 268 / 0.06);
+    /* Soft, low-contrast shadows (neutral, not tinted). */
+    --shadow-sm: 0 1px 2px oklch(24% 0.01 260 / 0.06);
     --shadow:
-        0 2px 10px -3px oklch(24% 0.02 268 / 0.12),
-        0 1px 3px -1px oklch(24% 0.02 268 / 0.06);
+        0 2px 10px -3px oklch(24% 0.01 260 / 0.12),
+        0 1px 3px -1px oklch(24% 0.01 260 / 0.06);
     --shadow-lg:
-        0 16px 40px -12px oklch(24% 0.02 268 / 0.22),
-        0 4px 10px -6px oklch(24% 0.02 268 / 0.08);
+        0 16px 40px -12px oklch(24% 0.01 260 / 0.22),
+        0 4px 10px -6px oklch(24% 0.01 260 / 0.08);
 
     /* Type. */
     --sans:

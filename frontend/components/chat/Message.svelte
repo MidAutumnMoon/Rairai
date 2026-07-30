@@ -128,34 +128,35 @@ async function copy() {
     color: var(--text-muted);
 }
 
-/* User message: a right-aligned primary bubble (iMessage-style "sent").
+/* User message: a right-aligned light-blue bubble (DeepSeek-style "sent").
    align-self:flex-end pins it right AND keeps it content-sized so it
    doesn't stretch full-width; max-width caps long messages. */
 .msg.user .bubble {
     align-self: flex-end;
     max-width: 80%;
-    background: var(--primary);
-    color: var(--primary-foreground);
+    background: var(--primary-soft);
+    color: var(--text);
     border-radius: 1.1rem;
     padding: 0.55rem 0.9rem;
     box-shadow: var(--shadow-sm);
 }
 /* .prose is {@html}-injected (no scope hash, like the global prose.css),
    so reach its children with :global and keep code/links legible on the
-   violet field — light code chips would be white-on-light otherwise. */
+   light blue field. */
 .msg.user .bubble :global(.prose code) {
-    background: rgba(0, 0, 0, 0.18);
-    color: var(--primary-foreground);
+    background: rgba(0, 0, 0, 0.08);
+    color: var(--text);
 }
 .msg.user .bubble :global(.prose pre) {
-    background: rgba(0, 0, 0, 0.22);
-    border-color: rgba(0, 0, 0, 0.2);
+    background: rgba(0, 0, 0, 0.1);
+    border-color: rgba(0, 0, 0, 0.12);
 }
 .msg.user .bubble :global(.prose pre code) {
-    color: var(--primary-foreground);
+    color: var(--text);
 }
 .msg.user .bubble :global(.prose a) {
-    color: var(--primary-foreground);
+    color: var(--primary);
+    text-decoration: underline;
 }
 .msg.user .msg-footer {
     align-self: flex-end;
