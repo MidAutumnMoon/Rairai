@@ -1,37 +1,37 @@
 <script lang="ts">
-// The connection form (name, API type, base URL, credential source + key,
-// enabled). Extracted from Providers.svelte because the identical markup
-// was duplicated across the "new" and "edit" branches - the duplication was
-// the root cause of the indentation bloat. Both branches now render this.
-import { ToggleGroup } from "bits-ui";
-import type { ApiType } from "$shared/api.ts";
-import Select from "$components/ui/Select.svelte";
+    // The connection form (name, API type, base URL, credential source + key,
+    // enabled). Extracted from Providers.svelte because the identical markup
+    // was duplicated across the "new" and "edit" branches - the duplication was
+    // the root cause of the indentation bloat. Both branches now render this.
+    import { ToggleGroup } from "bits-ui";
+    import type { ApiType } from "$shared/api.ts";
+    import Select from "$components/ui/Select.svelte";
 
-export type FormState = {
-    name: string;
-    apiType: ApiType;
-    baseUrl: string;
-    credSource: "env" | "inline";
-    credRef: string;
-    key: string;
-    enabled: boolean;
-};
+    export type FormState = {
+        name: string;
+        apiType: ApiType;
+        baseUrl: string;
+        credSource: "env" | "inline";
+        credRef: string;
+        key: string;
+        enabled: boolean;
+    };
 
-let {
-    form = $bindable(),
-    apiTypeOptions,
-    isEdit = false,
-    error = null,
-    saving = false,
-    onsave,
-}: {
-    form: FormState;
-    apiTypeOptions: { value: string; label: string }[];
-    isEdit?: boolean;
-    error?: string | null;
-    saving?: boolean;
-    onsave: () => void;
-} = $props();
+    let {
+        form = $bindable(),
+        apiTypeOptions,
+        isEdit = false,
+        error = null,
+        saving = false,
+        onsave,
+    }: {
+        form: FormState;
+        apiTypeOptions: { value: string; label: string }[];
+        isEdit?: boolean;
+        error?: string | null;
+        saving?: boolean;
+        onsave: () => void;
+    } = $props();
 </script>
 
 <section class="field-group">
@@ -39,7 +39,11 @@ let {
     <div class="grid">
         <label class="field">
             <span class="lbl">Name</span>
-            <input class="input" bind:value={form.name} placeholder="My OpenAI" />
+            <input
+                class="input"
+                bind:value={form.name}
+                placeholder="My OpenAI"
+            />
         </label>
         <div class="field">
             <span class="lbl">API type</span>
@@ -57,9 +61,17 @@ let {
         </label>
         <div class="field wide">
             <span class="lbl">Credential source</span>
-            <ToggleGroup.Root type="single" bind:value={form.credSource} class="seg">
-                <ToggleGroup.Item class="seg-item" value="env">env var</ToggleGroup.Item>
-                <ToggleGroup.Item class="seg-item" value="inline">inline key</ToggleGroup.Item>
+            <ToggleGroup.Root
+                type="single"
+                bind:value={form.credSource}
+                class="seg"
+            >
+                <ToggleGroup.Item class="seg-item" value="env"
+                    >env var</ToggleGroup.Item
+                >
+                <ToggleGroup.Item class="seg-item" value="inline"
+                    >inline key</ToggleGroup.Item
+                >
             </ToggleGroup.Root>
             {#if form.credSource === "env"}
                 <label class="sub">
@@ -69,13 +81,17 @@ let {
                         bind:value={form.credRef}
                         placeholder="OPENAI_API_KEY"
                     />
-                    <span class="hint">read from the server environment (not a secret)</span>
+                    <span class="hint"
+                        >read from the server environment (not a secret)</span
+                    >
                 </label>
             {:else}
                 <label class="sub">
                     <span class="lbl">
                         API key
-                        {#if isEdit}<span class="hint">(leave blank to keep existing)</span>{/if}
+                        {#if isEdit}<span class="hint"
+                                >(leave blank to keep existing)</span
+                            >{/if}
                     </span>
                     <input
                         class="input"
@@ -84,7 +100,9 @@ let {
                         placeholder={isEdit ? "••••••••" : "sk-..."}
                         autocomplete="off"
                     />
-                    <span class="hint">stored on the server (0600); never returned</span>
+                    <span class="hint"
+                        >stored on the server (0600); never returned</span
+                    >
                 </label>
             {/if}
         </div>

@@ -1,20 +1,20 @@
 <script lang="ts">
-import { chat } from "$lib/chat.svelte";
-import Icon from "./ui/Icon.svelte";
+    import { chat } from "$lib/chat.svelte";
+    import Icon from "./ui/Icon.svelte";
 
-let {
-    onOpenManage,
-    onOpenSettings,
-    onNavigateToChat,
-}: {
-    onOpenManage: () => void;
-    onOpenSettings: () => void;
-    onNavigateToChat: () => void;
-} = $props();
+    let {
+        onOpenManage,
+        onOpenSettings,
+        onNavigateToChat,
+    }: {
+        onOpenManage: () => void;
+        onOpenSettings: () => void;
+        onNavigateToChat: () => void;
+    } = $props();
 
-const active = $derived(
-    chat.assistants.find((a) => a.id === chat.activeAssistantId) ?? null,
-);
+    const active = $derived(
+        chat.assistants.find((a) => a.id === chat.activeAssistantId) ?? null,
+    );
 </script>
 
 <aside class="sidebar">
@@ -25,7 +25,9 @@ const active = $derived(
             <span class="aa-emoji">{active.emoji}</span>
             <span class="aa-info">
                 <span class="aa-name">{active.name}</span>
-                {#if active.description}<span class="aa-desc">{active.description}</span>{/if}
+                {#if active.description}<span class="aa-desc"
+                        >{active.description}</span
+                    >{/if}
             </span>
         {:else}
             <span class="aa-name">No assistant</span>
@@ -37,14 +39,26 @@ const active = $derived(
     <div class="convos">
         <div class="convos-head">
             <span class="convos-label">Chats</span>
-            <button class="btn btn-ghost btn-sm"
-                onclick={() => { chat.newConversation(); onNavigateToChat(); }}>
+            <button
+                class="btn btn-ghost btn-sm"
+                onclick={() => {
+                    chat.newConversation();
+                    onNavigateToChat();
+                }}
+            >
                 <Icon name="plus" size={14} /> New
             </button>
         </div>
         <div class="convos-list">
             {#each chat.conversations as conv (conv.id)}
-                <button class="convo" class:active={conv.id === chat.activeId} onclick={() => { chat.open(conv.id); onNavigateToChat(); }}>
+                <button
+                    class="convo"
+                    class:active={conv.id === chat.activeId}
+                    onclick={() => {
+                        chat.open(conv.id);
+                        onNavigateToChat();
+                    }}
+                >
                     <span class="dot"></span>
                     <span class="t">{conv.title}</span>
                 </button>
@@ -59,6 +73,7 @@ const active = $derived(
         </button>
     </footer>
 </aside>
+
 <style>
     .aa-card {
         flex: none;

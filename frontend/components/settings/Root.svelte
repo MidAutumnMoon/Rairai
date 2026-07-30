@@ -8,7 +8,15 @@
     import SettingsGeneral from "./General.svelte";
     import SettingsData from "./Data.svelte";
 
-    let { tab, focusAssistantId = null }: { tab: string; focusAssistantId?: string | null } = $props();
+    interface Props {
+        tab: string;
+        focusAssistantId?: string | null;
+    }
+
+    let {
+        tab,
+        focusAssistantId = null,
+    }: Props = $props();
 </script>
 
 {#if tab === "providers"}
