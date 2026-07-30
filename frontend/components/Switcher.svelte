@@ -1,6 +1,7 @@
 <script lang="ts">
     import { chat } from "$lib/chat.svelte";
-    import Icon from "./ui/Icon.svelte";
+    import Plus from "@lucide/svelte/icons/plus";
+    import X from "@lucide/svelte/icons/x";
     let {
         onClose,
         onEdit,
@@ -15,10 +16,10 @@
         <span class="assist-title">Assistants</span>
         <div class="assist-actions">
             <button class="btn btn-primary btn-sm" onclick={() => onEdit(null)}>
-                <Icon name="plus" size={14} /> Manage
+                <Plus size={14} /> Manage
             </button>
             <button class="btn btn-icon btn-sm" onclick={onClose} aria-label="Close">
-                <Icon name="x" size={16} />
+                <X size={16} />
             </button>
         </div>
     </header>

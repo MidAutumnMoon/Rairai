@@ -1,6 +1,7 @@
 <script lang="ts">
 import { Collapsible } from "bits-ui";
-import Icon from "$components/ui/Icon.svelte";
+import Sparkles from "@lucide/svelte/icons/sparkles";
+import ChevronRight from "@lucide/svelte/icons/chevron-right";
 import { renderMarkdown } from "$lib/markdown";
 
 let { text, streaming = false }: { text: string; streaming?: boolean } =
@@ -17,9 +18,9 @@ const html = $derived(streaming ? "" : renderMarkdown(text));
 
 <Collapsible.Root bind:open class="reasoning">
     <Collapsible.Trigger class="collapse-trigger">
-        <Icon name="sparkles" size={13} class="reasoning-icon" />
+        <Sparkles size={13} class="reasoning-icon" />
         <span>Reasoning</span>
-        <Icon name="chevron-right" size={13} class="chev" />
+        <ChevronRight size={13} class="chev" />
     </Collapsible.Trigger>
     <Collapsible.Content class="collapse-content">
         {#if streaming}

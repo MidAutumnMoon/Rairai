@@ -1,6 +1,8 @@
 <script lang="ts">
 import { chat } from "$lib/chat.svelte";
-import Icon from "./ui/Icon.svelte";
+import ChevronRight from "@lucide/svelte/icons/chevron-right";
+import Plus from "@lucide/svelte/icons/plus";
+import Settings from "@lucide/svelte/icons/settings";
 import Switcher from "./Switcher.svelte";
 
 let {
@@ -42,7 +44,7 @@ function closePopup() {
             {:else}
                 <span class="aa-name">No assistant</span>
             {/if}
-            <Icon name="chevron-right" size={16} class="aa-chev" />
+            <ChevronRight size={16} class="aa-chev" />
         </button>
     </div>
 
@@ -57,7 +59,7 @@ function closePopup() {
                     onNavigateToChat();
                 }}
             >
-                <Icon name="plus" size={14} /> New
+                <Plus size={14} /> New
             </button>
         </div>
         <div class="convos-list">
@@ -79,7 +81,7 @@ function closePopup() {
 
     <footer class="side-footer">
         <button class="side-foot-btn" onclick={onOpenSettings}>
-            <Icon name="settings" size={16} />
+            <Settings size={16} />
             <span>Settings</span>
         </button>
     </footer>

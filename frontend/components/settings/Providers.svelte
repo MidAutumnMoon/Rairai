@@ -9,7 +9,7 @@
     } from "$lib/api.ts";
     import type { ApiType, Provider, ProviderInput } from "$shared/api.ts";
     import { messageOf } from "$shared/error.ts";
-    import Icon from "$components/ui/Icon.svelte";
+    import Plus from "@lucide/svelte/icons/plus";
     import ConnectionForm, { type FormState } from "./ConnectionForm.svelte";
     import ModelsSection from "./ModelsSection.svelte";
 
@@ -250,7 +250,7 @@
             {/each}
         </div>
         <button class="btn btn-sm btn-ghost sub-nav-add" onclick={openNew}>
-            <Icon name="plus" size={14} /> New provider
+            <Plus size={14} /> New provider
         </button>
     </nav>
 

@@ -4,7 +4,9 @@ import { chat } from "$lib/chat.svelte";
 import { renderMarkdown } from "$lib/markdown";
 import ReasoningBlock from "./Reasoning.svelte";
 import ToolCallCard from "./ToolCall.svelte";
-import Icon from "$components/ui/Icon.svelte";
+import Sparkles from "@lucide/svelte/icons/sparkles";
+import Check from "@lucide/svelte/icons/check";
+import Copy from "@lucide/svelte/icons/copy";
 import Button from "$components/ui/Button.svelte";
 
 let { msg }: { msg: ChatMessage } = $props();
@@ -32,7 +34,7 @@ async function copy() {
     {#if isAssistant}
         <header class="msg-head">
             <span class="msg-avatar assistant">
-                <Icon name="sparkles" size={15} />
+                <Sparkles size={15} />
             </span>
             <span class="msg-name">Assistant</span>
             {#if msg.model}
@@ -65,7 +67,7 @@ async function copy() {
         <footer class="msg-footer">
             {#if msg.text}
                 <Button label="Copy" class="btn btn-ghost btn-sm" onclick={copy}>
-                    <Icon name={copied ? "check" : "copy"} size={14} />
+                    {#if copied}<Check size={14} />{:else}<Copy size={14} />{/if}
                 </Button>
             {/if}
             {#if msg.usage}

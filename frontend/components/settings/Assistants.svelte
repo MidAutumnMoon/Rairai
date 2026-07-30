@@ -2,7 +2,7 @@
 import { chat } from "$lib/chat.svelte";
 import { listProviders } from "$lib/api.ts";
 import type { Provider } from "$shared/api.ts";
-import Icon from "$components/ui/Icon.svelte";
+import Plus from "@lucide/svelte/icons/plus";
 import AssistantEditor from "./Editor.svelte";
 
 let { focusAssistantId = null }: { focusAssistantId?: string | null } =
@@ -95,7 +95,7 @@ function modelLabel(
             {/each}
         </div>
         <button class="btn btn-sm btn-ghost sub-nav-add" onclick={openNew}>
-            <Icon name="plus" size={14} /> New assistant
+            <Plus size={14} /> New assistant
         </button>
     </nav>
 

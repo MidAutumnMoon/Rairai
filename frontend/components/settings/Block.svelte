@@ -4,7 +4,11 @@
 // each -> if/else -> toggle -> actions -> textarea). The per-item renderer
 // belongs in its own file; the editor just maps over blocks.
 import type { PromptBlock, PromptRole } from "$shared/api.ts";
-import Icon from "$components/ui/Icon.svelte";
+import Check from "@lucide/svelte/icons/check";
+import X from "@lucide/svelte/icons/x";
+import ChevronUp from "@lucide/svelte/icons/chevron-up";
+import ChevronDown from "@lucide/svelte/icons/chevron-down";
+import Trash from "@lucide/svelte/icons/trash";
 
 let {
     block,
@@ -49,7 +53,7 @@ const placeholder = $derived(
                 title={block.enabled ? "Enabled" : "Disabled"}
                 onclick={() => ontoggle(block.id)}
             >
-                <Icon name={block.enabled ? "check" : "x"} size={15} />
+                {#if block.enabled}<Check size={15} />{:else}<X size={15} />{/if}
             </button>
             <select
                 class="pblock-role"
@@ -73,7 +77,7 @@ const placeholder = $derived(
                 disabled={first}
                 title="Move up"
             >
-                <Icon name="chevron-up" size={15} />
+                <ChevronUp size={15} />
             </button>
             <button
                 type="button"
@@ -82,7 +86,7 @@ const placeholder = $derived(
                 disabled={last}
                 title="Move down"
             >
-                <Icon name="chevron-down" size={15} />
+                <ChevronDown size={15} />
             </button>
             <button
                 type="button"
@@ -90,7 +94,7 @@ const placeholder = $derived(
                 onclick={() => onremove(index)}
                 title="Delete block"
             >
-                <Icon name="trash" size={15} />
+                <Trash size={15} />
             </button>
         </div>
     </div>

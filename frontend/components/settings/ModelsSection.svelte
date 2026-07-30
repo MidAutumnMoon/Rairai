@@ -3,7 +3,7 @@
     // Extracted from Providers.svelte to flatten the detail pane: the nested
     // {#each group}{#each model} lived inline, compounding the indentation.
     import type { Model, Provider } from "$shared/api.ts";
-    import Icon from "$components/ui/Icon.svelte";
+    import X from "@lucide/svelte/icons/x";
 
     let {
         provider,
@@ -73,7 +73,7 @@
                                 onclick={() => onremove(m.id)}
                                 title="Remove model"
                             >
-                                <Icon name="x" size={13} />
+                                <X size={13} />
                             </button>
                         </div>
                     {/each}

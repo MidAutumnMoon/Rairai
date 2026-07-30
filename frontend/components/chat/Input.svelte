@@ -1,8 +1,10 @@
 <script lang="ts">
 import { chat } from "$lib/chat.svelte";
-import Icon from "$components/ui/Icon.svelte";
+import Lightbulb from "@lucide/svelte/icons/lightbulb";
+import Plug from "@lucide/svelte/icons/plug";
+import SquareStop from "@lucide/svelte/icons/square-stop";
+import Send from "@lucide/svelte/icons/send";
 import Button from "$components/ui/Button.svelte";
-import SendIcon from "@lucide/svelte/icons/arrow-big-up";
 
 let text = $state("");
 let ta: HTMLTextAreaElement | undefined = $state();
@@ -10,8 +12,8 @@ let ta: HTMLTextAreaElement | undefined = $state();
 // Extensible composer tools (bottom-left). Local toggle state only - not
 // wired to the request yet; a future send path can read `activeTools`.
 const composerTools = [
-    { id: "reasoning", label: "Reasoning", icon: "lightbulb" },
-    { id: "mcp", label: "MCP", icon: "plug" },
+    { id: "reasoning", label: "Reasoning", icon: Lightbulb },
+    { id: "mcp", label: "MCP", icon: Plug },
 ];
 let activeTools = $state(new Set<string>());
 function toggleTool(id: string) {
@@ -64,7 +66,7 @@ function onkeydown(e: KeyboardEvent) {
                         data-state={activeTools.has(t.id) ? "on" : "off"}
                         onclick={() => toggleTool(t.id)}
                     >
-                        <Icon name={t.icon} size={15} />
+                        <svelte:component this={t.icon} size={15} />
                         {t.label}
                     </button>
                 {/each}
@@ -77,7 +79,7 @@ function onkeydown(e: KeyboardEvent) {
                         class="btn btn-icon btn-danger btn-pill"
                         onclick={() => chat.abort()}
                     >
-                        <Icon name="stop" size={16} />
+                        <SquareStop size={16} />
                     </Button>
                 {:else}
                     <Button
@@ -86,7 +88,7 @@ function onkeydown(e: KeyboardEvent) {
                         onclick={send}
                         disabled={!text.trim()}
                     >
-                        <SendIcon size={16} />
+                        <Send size={16} />
                     </Button>
                 {/if}
             </div>

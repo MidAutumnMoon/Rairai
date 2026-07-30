@@ -2,7 +2,7 @@
 import { chat } from "$lib/chat.svelte";
 import NetworkLogDetail from "./Detail.svelte";
 import type { NetworkLog } from "$shared/chat-events.ts";
-import Icon from "$components/ui/Icon.svelte";
+import X from "@lucide/svelte/icons/x";
 
 let { onClose }: { onClose: () => void } = $props();
 let selectedId = $state<string | null>(null);
@@ -22,7 +22,7 @@ function modelOf(log: NetworkLog): string {
         <div class="head-actions">
             <button class="btn btn-ghost btn-sm" onclick={() => chat.clearLogs()}>Clear</button>
             <button class="btn btn-icon btn-sm" onclick={onClose} aria-label="Close inspector">
-                <Icon name="x" size={16} />
+                <X size={16} />
             </button>
         </div>
     </header>

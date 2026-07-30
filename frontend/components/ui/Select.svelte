@@ -3,7 +3,8 @@
     // content/viewport/item boilerplate live once. Styles come from app.css
     // (.select-trigger / .select-content / .select-item).
     import { Select } from "bits-ui";
-    import Icon from "./Icon.svelte";
+    import ChevronDown from "@lucide/svelte/icons/chevron-down";
+    import Check from "@lucide/svelte/icons/check";
 
     type Option = { value: string; label: string; disabled?: boolean };
     let {
@@ -22,7 +23,7 @@
 <Select.Root type="single" {items} bind:value>
     <Select.Trigger class={`select-trigger ${klass}`}>
         <Select.Value {placeholder} />
-        <Icon name="chevron-down" size={16} class="chev" />
+        <ChevronDown size={16} class="chev" />
     </Select.Trigger>
     <Select.Portal>
         <Select.Content class="select-content" sideOffset={6}>
@@ -38,7 +39,7 @@
                             <span>{it.label}</span>
                             {#if selected}
                                 <span class="select-check"
-                                    ><Icon name="check" size={14} /></span
+                                    ><Check size={14} /></span
                                 >
                             {/if}
                         {/snippet}

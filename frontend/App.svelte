@@ -6,7 +6,8 @@
     import ChatInput from "$components/chat/Input.svelte";
     import NetworkInspector from "$components/inspector/Panel.svelte";
     import Settings from "$components/settings/Root.svelte";
-    import Icon from "$components/ui/Icon.svelte";
+    import ArrowLeft from "@lucide/svelte/icons/arrow-left";
+    import PanelRight from "@lucide/svelte/icons/panel-right";
     import Button from "$components/ui/Button.svelte";
     import "./app.css";
 
@@ -46,7 +47,7 @@
                 onclick={() => (view = "chat")}
                 aria-label="Back to chat"
             >
-                <Icon name="arrow-left" size={18} />
+                <ArrowLeft size={18} />
                 <span>Back</span>
             </button>
             <nav class="settings-nav">
@@ -108,7 +109,7 @@
                             class="btn btn-icon"
                             onclick={() => (inspectorOpen = !inspectorOpen)}
                         >
-                            <Icon name="panel-right" />
+                            <PanelRight />
                         </Button>
                     </div>
                 </header>

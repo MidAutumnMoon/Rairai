@@ -15,7 +15,6 @@
     import { getAssistant } from "$lib/api.ts";
     import { uid } from "$shared/id.ts";
     import { messageOf } from "$shared/error.ts";
-    import Icon from "$components/ui/Icon.svelte";
     import Select from "$components/ui/Select.svelte";
     import Block from "./Block.svelte";
 
