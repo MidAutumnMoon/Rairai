@@ -17,8 +17,9 @@ const html = $derived(streaming ? "" : renderMarkdown(text));
 
 <Collapsible.Root bind:open class="reasoning">
     <Collapsible.Trigger class="collapse-trigger">
-        <Icon name="chevron-right" class="chev" />
+        <Icon name="sparkles" size={13} class="reasoning-icon" />
         <span>Reasoning</span>
+        <Icon name="chevron-right" size={13} class="chev" />
     </Collapsible.Trigger>
     <Collapsible.Content class="collapse-content">
         {#if streaming}
@@ -30,18 +31,54 @@ const html = $derived(streaming ? "" : renderMarkdown(text));
 </Collapsible.Root>
 
 <style>
-/* :global — Collapsible.Root renders the .reasoning element inside
-   bits-ui's own scope, so a scoped selector here never attaches the
-   svelte-XXXX hash and these rules silently no-op (the warn-soft fill
-   and amber trigger never applied). Pierce the boundary. */
+/* :global - Collapsible.Root/Trigger/Content render inside bits-ui's own
+   scope, so scoped selectors here never attach the svelte-XXXX hash. The
+   shared .collapse-trigger/.collapse-content base lives in bits-ui.css; we
+   override it scoped to .reasoning so ToolCall keeps its card look. */
+
+/* Collapsed: no card chrome - just a quiet metadata line. No border, no
+   amber fill; transparent so it fades into the message when scanning. */
 :global(.reasoning) {
-    border: 1px solid var(--border);
-    border-radius: var(--r);
-    background: var(--warn-soft);
-    border-color: color-mix(in oklch, var(--warn), white 60%);
-    overflow: hidden;
+    border: 0;
+    background: transparent;
+    border-radius: 0;
+    overflow: visible;
 }
+/* Trigger: shrink the shared full-width padded bar to a small inline line.
+   Same color family as the assistant name/timestamp (--text-faint) so it
+   reads as metadata, not a button. */
 :global(.reasoning .collapse-trigger) {
-    color: oklch(48% 0.1 70);
+    width: auto;
+    padding: 0.15rem 0;
+    font-weight: 500;
+    font-size: 12px;
+    color: var(--text-faint);
+    gap: 0.3rem;
+}
+:global(.reasoning .collapse-trigger:hover) {
+    color: var(--text-muted);
+}
+:global(.reasoning .reasoning-icon) {
+    color: var(--text-faint);
+    flex-shrink: 0;
+}
+/* Expanded: a compact, subordinate block - soft gray fill, smaller font,
+   secondary text. Clearly readable but visually below the main answer. */
+:global(.reasoning .collapse-content) {
+    background: var(--surface-2);
+    border-top: 0;
+    border-radius: var(--r);
+    padding: 0.6rem 0.75rem;
+    margin-top: 0.3rem;
+    font-size: 12.5px;
+    color: var(--text-muted);
+    line-height: 1.55;
+}
+:global(.reasoning .collapse-content .raw) {
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-muted);
 }
 </style>
