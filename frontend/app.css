@@ -8,11 +8,11 @@
 
 @layer reset, tokens, base, components, utilities;
 
-@import "styles/reset.css";
-@import "styles/tokens.css";
-@import "styles/base.css";
-@import "styles/primitives.css";
-@import "styles/layout.css";
-@import "styles/bits-ui.css";
-@import "styles/prose.css";
-@import "styles/utilities.css";
+@import "styles/reset.css" layer(reset);
+@import "styles/tokens.css" layer(tokens);
+@import "styles/base.css" layer(base);
+@import "styles/primitives.css" layer(components);
+@import "styles/layout.css" layer(components);
+@import "styles/bits-ui.css" layer(components);
+@import "styles/prose.css" layer(components);
+@import "styles/utilities.css" layer(utilities);

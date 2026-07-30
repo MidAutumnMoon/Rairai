@@ -1,235 +1,233 @@
 /* App shell: grid layout, sidebar, drawer positioning, settings nav. */
 
-@layer components {
-    .app {
-        display: grid;
-        grid-template-columns: minmax(0, 280px) minmax(0, 1fr);
-        grid-template-rows: minmax(0, 1fr);
-        height: 100dvh;
-        overflow: hidden;
-    }
-    .app > * {
-        min-height: 0;
-        min-width: 0;
-        overflow: hidden;
-    }
-    .sidebar {
-        display: flex;
-        flex-direction: column;
-        background: var(--surface-2);
-        border-inline-end: 1px solid var(--border);
-        padding: 0.5rem;
-        gap: 0.5rem;
-    }
-    .main-pane {
-        position: relative;
-        display: flex;
-        flex-direction: column;
-    }
-    .chat-pane {
-        display: flex;
-        flex-direction: column;
-        min-height: 0;
-        flex: 1;
-    }
+.app {
+    display: grid;
+    grid-template-columns: minmax(0, 280px) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    height: 100dvh;
+    overflow: hidden;
+}
+.app > * {
+    min-height: 0;
+    min-width: 0;
+    overflow: hidden;
+}
+.sidebar {
+    display: flex;
+    flex-direction: column;
+    background: var(--surface-2);
+    border-inline-end: 1px solid var(--border);
+    padding: 0.5rem;
+    gap: 0.5rem;
+}
+.main-pane {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+.chat-pane {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    flex: 1;
+}
 
-    /* ---- drawers ---- */
-    .drawer {
-        position: absolute;
-        inset: 0 0 0 auto;
-        z-index: 40;
-        transform: translateX(100%);
-        transition: transform 200ms ease;
-        box-shadow: var(--shadow-lg);
-        border-inline-start: 1px solid var(--border);
-        background: var(--surface);
-    }
-    .drawer.open {
-        transform: translateX(0);
-    }
-    .manage-drawer {
-        width: min(360px, 50vw);
-    }
-    .inspector-drawer {
-        width: min(440px, 50vw);
-    }
+/* ---- drawers ---- */
+.drawer {
+    position: absolute;
+    inset: 0 0 0 auto;
+    z-index: 40;
+    transform: translateX(100%);
+    transition: transform 200ms ease;
+    box-shadow: var(--shadow-lg);
+    border-inline-start: 1px solid var(--border);
+    background: var(--surface);
+}
+.drawer.open {
+    transform: translateX(0);
+}
+.manage-drawer {
+    width: min(360px, 50vw);
+}
+.inspector-drawer {
+    width: min(440px, 50vw);
+}
 
-    /* ---- settings sidebar ---- */
-    .sidebar-back {
-        flex: none;
-        display: flex;
-        align-items: center;
-        gap: 0.4rem;
-        padding: 0.6rem 0.7rem;
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: var(--r-md);
-        box-shadow: var(--shadow-sm);
-        color: var(--text-muted);
-        font-size: 13px;
-        font-weight: 500;
-        transition:
-            border-color var(--transition),
-            box-shadow var(--transition),
-            color var(--transition);
-    }
-    .sidebar-back:hover {
-        border-color: var(--border-strong);
-        box-shadow: var(--shadow);
-        color: var(--text);
-    }
-    .settings-nav {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        min-height: 0;
-        overflow-y: auto;
-        padding: 0;
-        gap: 0.15rem;
-    }
-    .settings-nav-item {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.5rem 0.7rem;
-        border-radius: var(--r);
-        font-size: 13px;
-        font-weight: 500;
-        color: var(--text-muted);
-        text-align: start;
-        transition:
-            background var(--transition),
-            color var(--transition);
-    }
-    .settings-nav-item:hover {
-        background: var(--surface-3);
-        color: var(--text);
-    }
-    .settings-nav-item.active {
-        background: var(--primary-soft);
-        color: var(--primary);
-        font-weight: 600;
-    }
-    .settings-content {
-        flex: 1;
-        min-width: 0;
-        min-height: 0;
-        overflow-y: auto;
-        padding: 1.5rem;
-    }
-    .settings-content > * {
-        max-width: 600px;
-        margin-inline: auto;
-    }
+/* ---- settings sidebar ---- */
+.sidebar-back {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.6rem 0.7rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    box-shadow: var(--shadow-sm);
+    color: var(--text-muted);
+    font-size: 13px;
+    font-weight: 500;
+    transition:
+        border-color var(--transition),
+        box-shadow var(--transition),
+        color var(--transition);
+}
+.sidebar-back:hover {
+    border-color: var(--border-strong);
+    box-shadow: var(--shadow);
+    color: var(--text);
+}
+.settings-nav {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 0;
+    gap: 0.15rem;
+}
+.settings-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.7rem;
+    border-radius: var(--r);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-muted);
+    text-align: start;
+    transition:
+        background var(--transition),
+        color var(--transition);
+}
+.settings-nav-item:hover {
+    background: var(--surface-3);
+    color: var(--text);
+}
+.settings-nav-item.active {
+    background: var(--primary-soft);
+    color: var(--primary);
+    font-weight: 600;
+}
+.settings-content {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 1.5rem;
+}
+.settings-content > * {
+    max-width: 600px;
+    margin-inline: auto;
+}
 
-    /* ---- settings split (sub-nav + detail) ---- */
-    .settings-split {
-        flex: 1;
-        min-width: 0;
-        min-height: 0;
-        display: flex;
-        overflow: hidden;
-    }
-    .sub-nav {
-        flex: none;
-        width: 200px;
-        min-width: 0;
-        display: flex;
-        flex-direction: column;
-        min-height: 0;
-        padding: 0.5rem 0;
-        gap: 0.05rem;
-    }
-    .sub-nav-head {
-        flex: none;
-        display: flex;
-        align-items: center;
-        gap: 0.4rem;
-        padding: 0.3rem 0.7rem 0.5rem;
-    }
-    .sub-nav-head .count {
-        font-size: 11px;
-        color: var(--text-faint);
-        font-weight: 600;
-    }
-    .sub-nav-list {
-        flex: 1;
-        min-height: 0;
-        overflow-y: auto;
-        padding: 0 0.3rem;
-        display: flex;
-        flex-direction: column;
-        gap: 0.05rem;
-    }
-    .sub-nav-item {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        width: 100%;
-        text-align: start;
-        padding: 0.45rem 0.55rem;
-        border-radius: var(--r);
-        font-size: 13px;
-        font-weight: 500;
-        color: var(--text-muted);
-        transition:
-            background var(--transition),
-            color var(--transition);
-        min-width: 0;
-    }
-    .sub-nav-item:hover {
-        background: var(--surface-3);
-        color: var(--text);
-    }
-    .sub-nav-item.active {
-        background: var(--primary-soft);
-        color: var(--primary);
-        font-weight: 600;
-    }
-    .sub-nav-item-name {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        min-width: 0;
-    }
-    .sub-nav-add {
-        flex: none;
-        margin: 0.3rem 0.3rem 0;
-    }
-    .sub-detail {
-        flex: 1;
-        min-width: 0;
-        min-height: 0;
-        display: flex;
-        flex-direction: column;
-    }
-    .sub-detail-head {
-        flex: none;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 0.5rem;
-        padding: 0.55rem 0.85rem;
-        min-height: 48px;
-    }
-    .sub-detail-title {
-        font-weight: 600;
-        font-size: 15px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        min-width: 0;
-    }
-    .sub-detail-body {
-        flex: 1;
-        min-height: 0;
-        overflow-y: auto;
-        padding: 0.5rem 1.2rem 3rem;
-    }
-    .sub-detail-inner {
-        max-width: 640px;
-        display: flex;
-        flex-direction: column;
-        gap: 1.25rem;
-    }
+/* ---- settings split (sub-nav + detail) ---- */
+.settings-split {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    overflow: hidden;
+}
+.sub-nav {
+    flex: none;
+    width: 200px;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    padding: 0.5rem 0;
+    gap: 0.05rem;
+}
+.sub-nav-head {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.3rem 0.7rem 0.5rem;
+}
+.sub-nav-head .count {
+    font-size: 11px;
+    color: var(--text-faint);
+    font-weight: 600;
+}
+.sub-nav-list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 0 0.3rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.05rem;
+}
+.sub-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    text-align: start;
+    padding: 0.45rem 0.55rem;
+    border-radius: var(--r);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-muted);
+    transition:
+        background var(--transition),
+        color var(--transition);
+    min-width: 0;
+}
+.sub-nav-item:hover {
+    background: var(--surface-3);
+    color: var(--text);
+}
+.sub-nav-item.active {
+    background: var(--primary-soft);
+    color: var(--primary);
+    font-weight: 600;
+}
+.sub-nav-item-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+}
+.sub-nav-add {
+    flex: none;
+    margin: 0.3rem 0.3rem 0;
+}
+.sub-detail {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+.sub-detail-head {
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.55rem 0.85rem;
+    min-height: 48px;
+}
+.sub-detail-title {
+    font-weight: 600;
+    font-size: 15px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+}
+.sub-detail-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 0.5rem 1.2rem 3rem;
+}
+.sub-detail-inner {
+    max-width: 640px;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
 }
