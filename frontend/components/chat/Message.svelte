@@ -29,15 +29,17 @@ async function copy() {
 </script>
 
 <article class="msg" class:assistant={isAssistant} class:user={!isAssistant}>
-    <header class="msg-head">
-        <span class="msg-avatar {msg.role}">
-            <Icon name={isAssistant ? "sparkles" : "user"} size={15} />
-        </span>
-        <span class="msg-name">{isAssistant ? "Assistant" : "You"}</span>
-        {#if isAssistant && msg.model}
-            <span class="msg-model">{msg.model}</span>
-        {/if}
-    </header>
+    {#if isAssistant}
+        <header class="msg-head">
+            <span class="msg-avatar assistant">
+                <Icon name="sparkles" size={15} />
+            </span>
+            <span class="msg-name">Assistant</span>
+            {#if msg.model}
+                <span class="msg-model">{msg.model}</span>
+            {/if}
+        </header>
+    {/if}
 
     {#if msg.reasoning}
         <ReasoningBlock text={msg.reasoning} streaming={isStreaming} />
@@ -51,7 +53,7 @@ async function copy() {
         </div>
     {/if}
 
-    <div class="msg-body">
+    <div class="msg-body" class:bubble={!isAssistant}>
         {#if isStreaming}
             <pre class="raw">{msg.text || "…"}</pre>
         {:else}
@@ -79,75 +81,105 @@ async function copy() {
 </article>
 
 <style>
-    .msg {
-        max-width: var(--content-w);
-        margin: 0 auto;
-        padding: 0.65rem 1.5rem;
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-    }
-    .msg-head {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-    .msg-avatar {
-        width: 26px;
-        height: 26px;
-        border-radius: var(--r-full);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-    }
-    .msg-avatar.assistant {
-        background: var(--primary-soft);
-        color: var(--primary);
-    }
-    .msg-avatar.user {
-        background: var(--surface-3);
-        color: var(--text-muted);
-    }
-    .msg-name {
-        font-weight: 600;
-        font-size: 13px;
-    }
-    .msg-model {
-        font-size: 11px;
-        color: var(--text-faint);
-        font-family: var(--mono);
-    }
-    .msg-body {
-        font-size: 14.5px;
-        line-height: 1.65;
-    }
-    .msg-body .raw {
-        white-space: pre-wrap;
-        word-break: break-word;
-        font-family: var(--mono);
-        font-size: 13px;
-        color: var(--text-muted);
-    }
-    .msg-footer {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        font-size: 11px;
-        color: var(--text-faint);
-        opacity: 0;
-        transition: opacity var(--transition);
-    }
-    .msg:hover .msg-footer {
-        opacity: 1;
-    }
-    .tools {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-    }
-    .tokens .arrow {
-        opacity: 0.6;
-        margin-inline: 0.15rem;
-    }
+.msg {
+    max-width: var(--content-w);
+    margin: 0 auto;
+    padding: 0.75rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.msg-head {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.msg-avatar {
+    width: 26px;
+    height: 26px;
+    border-radius: var(--r-full);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.msg-avatar.assistant {
+    background: var(--primary-soft);
+    color: var(--primary);
+}
+.msg-name {
+    font-weight: 600;
+    font-size: 13px;
+}
+.msg-model {
+    font-size: 11px;
+    color: var(--text-faint);
+    font-family: var(--mono);
+}
+.msg-body {
+    font-size: 14.5px;
+    line-height: 1.65;
+}
+.msg-body .raw {
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+/* User message: a right-aligned primary bubble (iMessage-style "sent").
+   align-self:flex-end pins it right AND keeps it content-sized so it
+   doesn't stretch full-width; max-width caps long messages. */
+.msg.user .bubble {
+    align-self: flex-end;
+    max-width: 80%;
+    background: var(--primary);
+    color: var(--primary-foreground);
+    border-radius: 1.1rem;
+    padding: 0.55rem 0.9rem;
+    box-shadow: var(--shadow-sm);
+}
+/* .prose is {@html}-injected (no scope hash, like the global prose.css),
+   so reach its children with :global and keep code/links legible on the
+   violet field — light code chips would be white-on-light otherwise. */
+.msg.user .bubble :global(.prose code) {
+    background: rgba(0, 0, 0, 0.18);
+    color: var(--primary-foreground);
+}
+.msg.user .bubble :global(.prose pre) {
+    background: rgba(0, 0, 0, 0.22);
+    border-color: rgba(0, 0, 0, 0.2);
+}
+.msg.user .bubble :global(.prose pre code) {
+    color: var(--primary-foreground);
+}
+.msg.user .bubble :global(.prose a) {
+    color: var(--primary-foreground);
+}
+.msg.user .msg-footer {
+    align-self: flex-end;
+}
+
+.msg-footer {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 11px;
+    color: var(--text-faint);
+    opacity: 0;
+    transition: opacity var(--transition);
+}
+.msg:hover .msg-footer {
+    opacity: 1;
+}
+.tools {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.tokens .arrow {
+    opacity: 0.6;
+    margin-inline: 0.15rem;
+}
 </style>
