@@ -90,7 +90,7 @@
         gap: 0.5rem;
     }
     .empty-sm {
-        font-size: 12px;
+        font-size: 0.75rem;
         color: var(--text-faint);
         padding: 0.4rem 0;
     }
@@ -100,7 +100,7 @@
         gap: 0.15rem;
     }
     .model-group-head {
-        font-size: 10px;
+        font-size: 0.625rem;
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.04em;
@@ -122,13 +122,13 @@
         background: var(--surface-2);
     }
     .model-name {
-        font-size: 13px;
+        font-size: 0.8125rem;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
     }
     .model-id {
-        font-size: 11px;
+        font-size: 0.6875rem;
         font-family: var(--mono);
         color: var(--text-faint);
         overflow: hidden;

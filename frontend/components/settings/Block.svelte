@@ -120,7 +120,7 @@ const placeholder = $derived(
     }
     .pblock-marker {
         flex: 1;
-        font-size: 12px;
+        font-size: 0.75rem;
         font-weight: 700;
         color: var(--warn);
     }
@@ -132,7 +132,7 @@ const placeholder = $derived(
         color: var(--ok);
     }
     .pblock-role {
-        font-size: 11px;
+        font-size: 0.6875rem;
         font-weight: 600;
         color: var(--text-muted);
         background: transparent;
@@ -148,7 +148,7 @@ const placeholder = $derived(
         min-width: 0;
         border: 0;
         background: transparent;
-        font-size: 12px;
+        font-size: 0.75rem;
         color: var(--text-muted);
         outline: none;
         border-bottom: 1px dashed transparent;
@@ -179,7 +179,7 @@ const placeholder = $derived(
         outline: none;
         padding: 0.55rem 0.65rem;
         font-family: var(--mono);
-        font-size: 12.5px;
+        font-size: 0.7813rem;
         line-height: 1.5;
         min-height: 70px;
         color: var(--text);

@@ -51,7 +51,7 @@ const html = $derived(streaming ? "" : renderMarkdown(text));
     width: auto;
     padding: 0.15rem 0;
     font-weight: 500;
-    font-size: 12px;
+    font-size: 0.75rem;
     color: var(--text-faint);
     gap: 0.3rem;
 }
@@ -70,7 +70,7 @@ const html = $derived(streaming ? "" : renderMarkdown(text));
     border-radius: var(--r);
     padding: 0.6rem 0.75rem;
     margin-top: 0.3rem;
-    font-size: 12.5px;
+    font-size: 0.78125rem;
     color: var(--text-muted);
     line-height: 1.55;
 }
@@ -78,7 +78,7 @@ const html = $derived(streaming ? "" : renderMarkdown(text));
     white-space: pre-wrap;
     word-break: break-word;
     font-family: var(--mono);
-    font-size: 12px;
+    font-size: 0.75rem;
     color: var(--text-muted);
 }
 </style>

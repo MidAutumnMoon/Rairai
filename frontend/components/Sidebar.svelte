@@ -97,7 +97,7 @@ const active = $derived(
     box-shadow: var(--shadow-lg);
 }
 .aa-emoji {
-    font-size: 22px;
+    font-size: 1.375rem;
     line-height: 1;
     flex-shrink: 0;
 }
@@ -109,14 +109,14 @@ const active = $derived(
     gap: 0.05rem;
 }
 .aa-name {
-    font-size: 14px;
+    font-size: 0.875rem;
     font-weight: 600;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 .aa-desc {
-    font-size: 11px;
+    font-size: 0.6875rem;
     color: var(--text-faint);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -141,7 +141,7 @@ const active = $derived(
     padding: 0 0 0.3rem;
 }
 .convos-label {
-    font-size: 11px;
+    font-size: 0.6875rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -162,7 +162,7 @@ const active = $derived(
     padding: 0.5rem 0.6rem;
     border-radius: var(--r);
     color: var(--text-muted);
-    font-size: 13px;
+    font-size: 0.8125rem;
     transition:
         background var(--transition),
         color var(--transition);
@@ -201,7 +201,7 @@ const active = $derived(
     border-radius: var(--r-md);
     box-shadow: var(--shadow);
     color: var(--text-muted);
-    font-size: 13px;
+    font-size: 0.8125rem;
     transition:
         border-color var(--transition),
         box-shadow var(--transition),

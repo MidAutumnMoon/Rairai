@@ -109,22 +109,22 @@ async function copy() {
 }
 .msg-name {
     font-weight: 600;
-    font-size: 13px;
+    font-size: 0.8125rem;
 }
 .msg-model {
-    font-size: 11px;
+    font-size: 0.6875rem;
     color: var(--text-faint);
     font-family: var(--mono);
 }
 .msg-body {
-    font-size: 14.5px;
+    font-size: 0.90625rem;
     line-height: 1.65;
 }
 .msg-body .raw {
     white-space: pre-wrap;
     word-break: break-word;
     font-family: var(--mono);
-    font-size: 13px;
+    font-size: 0.8125rem;
     color: var(--text-muted);
 }
 
@@ -166,7 +166,7 @@ async function copy() {
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    font-size: 11px;
+    font-size: 0.6875rem;
     color: var(--text-faint);
     opacity: 0;
     transition: opacity var(--transition);

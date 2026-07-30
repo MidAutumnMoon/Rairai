@@ -127,7 +127,7 @@ function onkeydown(e: KeyboardEvent) {
     padding: 0.3rem 0;
     min-height: 44px;
     max-height: 200px;
-    font-size: 14px;
+    font-size: 0.875rem;
     line-height: 1.5;
     color: var(--text);
 }
@@ -156,7 +156,7 @@ function onkeydown(e: KeyboardEvent) {
     height: 28px;
     padding: 0 0.55rem;
     border-radius: var(--r);
-    font-size: 12px;
+    font-size: 0.75rem;
     color: var(--text-muted);
     background: transparent;
     transition:

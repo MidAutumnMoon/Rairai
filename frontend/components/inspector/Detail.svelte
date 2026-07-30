@@ -74,7 +74,7 @@ function fmt(value: unknown): string {
         gap: 0.9rem;
     }
     .detail h4 {
-        font-size: 11px;
+        font-size: 0.6875rem;
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.04em;
@@ -96,6 +96,6 @@ function fmt(value: unknown): string {
         color: var(--danger);
     }
     .chunks {
-        font-size: 11px;
+        font-size: 0.6875rem;
     }
 </style>
