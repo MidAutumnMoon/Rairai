@@ -109,14 +109,14 @@ const active = $derived(
     gap: 0.05rem;
 }
 .aa-name {
-    font-size: 0.875rem;
+    font-size: var(--t-sm);
     font-weight: 600;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 .aa-desc {
-    font-size: 0.6875rem;
+    font-size: var(--t-3xs);
     color: var(--text-faint);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -141,7 +141,7 @@ const active = $derived(
     padding: 0 0 0.3rem;
 }
 .convos-label {
-    font-size: 0.6875rem;
+    font-size: var(--t-3xs);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -162,7 +162,7 @@ const active = $derived(
     padding: 0.5rem 0.6rem;
     border-radius: var(--r);
     color: var(--text-muted);
-    font-size: 0.8125rem;
+    font-size: var(--t-xs);
     transition:
         background var(--transition),
         color var(--transition);
@@ -201,7 +201,7 @@ const active = $derived(
     border-radius: var(--r-md);
     box-shadow: var(--shadow);
     color: var(--text-muted);
-    font-size: 0.8125rem;
+    font-size: var(--t-xs);
     transition:
         border-color var(--transition),
         box-shadow var(--transition),

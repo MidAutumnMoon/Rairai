@@ -47,17 +47,17 @@ let open = $state(false);
     }
     .tool-name {
         font-weight: 600;
-        font-size: 0.8125rem;
+        font-size: var(--t-xs);
     }
     .tool-status {
-        font-size: 0.6875rem;
+        font-size: var(--t-3xs);
         color: var(--text-faint);
         text-transform: capitalize;
     }
     .tool-dur {
         margin-inline-start: auto;
         color: var(--text-faint);
-        font-size: 0.6875rem;
+        font-size: var(--t-3xs);
     }
     .tool :global(.spin) {
         animation: spin 0.8s linear infinite;
@@ -70,7 +70,7 @@ let open = $state(false);
         gap: 0.4rem;
     }
     .tool-detail .k {
-        font-size: 0.6875rem;
+        font-size: var(--t-3xs);
         font-weight: 600;
         color: var(--text-faint);
         text-transform: uppercase;

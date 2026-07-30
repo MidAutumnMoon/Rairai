@@ -71,7 +71,7 @@ function modelOf(log: NetworkLog): string {
         padding: 0.45rem 0.7rem;
         border-bottom: 1px solid var(--border);
         border-inline-start: 2px solid transparent;
-        font-size: 0.75rem;
+        font-size: var(--t-2xs);
     }
     .row:hover {
         background: var(--surface-2);
@@ -95,7 +95,7 @@ function modelOf(log: NetworkLog): string {
     }
     .model {
         font-family: var(--mono);
-        font-size: 0.75rem;
+        font-size: var(--t-2xs);
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -103,7 +103,7 @@ function modelOf(log: NetworkLog): string {
     .dur {
         margin-inline-start: auto;
         color: var(--text-faint);
-        font-size: 0.6875rem;
+        font-size: var(--t-3xs);
         flex-shrink: 0;
     }
 </style>

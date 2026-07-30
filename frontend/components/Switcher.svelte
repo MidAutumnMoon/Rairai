@@ -84,7 +84,7 @@
     }
     .drawer-title {
         font-weight: 700;
-        font-size: 0.875rem;
+        font-size: var(--t-sm);
     }
     .drawer-body {
         flex: 1;
@@ -135,14 +135,14 @@
         gap: 0.05rem;
     }
     .manage-name {
-        font-size: 0.8125rem;
+        font-size: var(--t-xs);
         font-weight: 600;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
     }
     .manage-desc {
-        font-size: 0.6875rem;
+        font-size: var(--t-3xs);
         color: var(--text-faint);
         overflow: hidden;
         text-overflow: ellipsis;

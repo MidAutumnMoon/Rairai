@@ -74,7 +74,7 @@ function fmt(value: unknown): string {
         gap: 0.9rem;
     }
     .detail h4 {
-        font-size: 0.6875rem;
+        font-size: var(--t-3xs);
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.04em;
@@ -87,7 +87,7 @@ function fmt(value: unknown): string {
         border-radius: var(--r);
         padding: 0.6rem 0.75rem;
         font-family: var(--mono);
-        font-size: 11.5px;
+        font-size: var(--t-2xs);
         overflow-x: auto;
         white-space: pre-wrap;
         word-break: break-word;
@@ -96,6 +96,6 @@ function fmt(value: unknown): string {
         color: var(--danger);
     }
     .chunks {
-        font-size: 0.6875rem;
+        font-size: var(--t-3xs);
     }
 </style>

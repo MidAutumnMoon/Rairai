@@ -77,7 +77,7 @@
     .load-more {
         text-align: center;
         color: var(--text-faint);
-        font-size: 0.75rem;
+        font-size: var(--t-2xs);
         padding: 0.4rem;
     }
     .error-banner {
@@ -87,6 +87,6 @@
         border: 1px solid var(--danger-soft);
         border-radius: var(--r);
         color: var(--danger);
-        font-size: 0.8125rem;
+        font-size: var(--t-xs);
     }
 </style>
